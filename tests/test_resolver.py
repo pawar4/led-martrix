@@ -172,7 +172,13 @@ def test_subway_sample_screen_renders():
     assert texts["72F"][:2] == (14, 8)
     assert texts["09:05"][0] == 34
     assert texts["Court Sq"][:2] == (18, 24)
-    assert texts["11m, 17m, 24m"][:3] == (18, 34, (255, 255, 255))
-    assert texts["2m, 14m, 20m"][2] == (255, 220, 0)      # first arrival <= 2 min
+    assert texts["11m, 17m"][:3] == (18, 34, (255, 255, 255))   # 3rd arrival dropped: no room
+    assert texts["2m, 14m"][2] == (255, 220, 0)      # first arrival <= 2 min
     assert canvas.pixels[(8, 24)] == (0, 57, 166) or canvas.pixels[(9, 24)] == (0, 57, 166)  # E bullet
     assert canvas.pixels[(8, 40)] == (185, 51, 173)                                          # 7 bullet
+
+
+def test_long_text_is_truncated_to_its_rect():
+    cfg = screen({"id": "r", "component": "Row", "children": ["t"]},
+                 {"id": "t", "component": "Text", "width": 20, "text": "abcdefgh"}, root="r")
+    assert render(cfg)[1].texts[0][3] == "abcd"

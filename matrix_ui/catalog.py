@@ -104,6 +104,13 @@ def text_width(font, text):
     return sum(font.CharacterWidth(ord(c)) for c in text)
 
 
+def fit_text(font, text, max_width):
+    """Longest prefix of `text` that fits in `max_width` pixels."""
+    while text and text_width(font, text) > max_width:
+        text = text[:-1]
+    return text
+
+
 def draw_text(ctx, x, baseline_y, text, color, font_name):
     font = ctx.fonts[font_name]
     ctx.graphics.DrawText(ctx.canvas, font, x, baseline_y, ctx.graphics.Color(*color), text)
@@ -111,6 +118,7 @@ def draw_text(ctx, x, baseline_y, text, color, font_name):
 
 def draw_aligned_text(ctx, rect, text, color, font_name, align):
     font = ctx.fonts[font_name]
+    text = fit_text(font, text, rect.w)
     width = text_width(font, text)
     x = rect.x
     if align == "center":
@@ -136,8 +144,14 @@ def draw_badge(ctx, rect, route, color, radius):
               route, COLORS["white"], "large")
 
 
-def format_arrivals(minutes):
-    return ", ".join("Now" if m == 0 else f"{m}m" for m in minutes)
+def format_arrivals(minutes, font=None, max_width=None):
+    """Join arrival times, dropping trailing ones until the line fits `max_width`."""
+    minutes = list(minutes)
+    while True:
+        text = ", ".join("Now" if m == 0 else f"{m}m" for m in minutes)
+        if font is None or len(minutes) <= 1 or text_width(font, text) <= max_width:
+            return text
+        minutes.pop()
 
 
 # ---- layout widgets ----
@@ -258,10 +272,13 @@ class TrainRow(Widget):
         mid = rect.y + rect.h // 2
         draw_badge(ctx, Rect(rect.x, rect.y, 16, rect.h), p["route"],
                    ROUTE_COLORS.get(p["route"], COLORS["dim"]), 6)
-        draw_text(ctx, rect.x + 18, mid, p["name"], COLORS["white"], "small")
+        font = ctx.fonts["small"]
+        text_w = rect.w - 18
+        draw_text(ctx, rect.x + 18, mid, fit_text(font, p["name"], text_w), COLORS["white"], "small")
         arrivals = p["arrivals"]
         if arrivals:
             color = COLORS["yellow"] if arrivals[0] <= 2 else COLORS["white"]
-            draw_text(ctx, rect.x + 18, mid + 10, format_arrivals(arrivals), color, "small")
+            line = fit_text(font, format_arrivals(arrivals, font, text_w), text_w)
         else:
-            draw_text(ctx, rect.x + 18, mid + 10, "No data", COLORS["white"], "small")
+            color, line = COLORS["white"], "No data"
+        draw_text(ctx, rect.x + 18, mid + 10, line, color, "small")
