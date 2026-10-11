@@ -18,6 +18,7 @@ python preview.py screens/weather.json             # 3-hour forecast for one day
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")
+python run.py                                      # the global model (matrix.json) picks, rotates and configures screens; add --live for real data
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 
@@ -30,6 +31,7 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 | `matrix_ui/` | The resolver package (config loading, widgets, layout, data model, data sources, icons, backend) |
 | `screens/` | Screen configs, each with a `<name>.sample_data.json` for previews |
 | `assets/` | Pictures that screens load with `Image` (`tanner.png` is the guest countdown picture) |
+| `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |
 | `docs/` | Documentation |
@@ -43,6 +45,6 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 ## Not done yet
 
-Multi-symbol markets rotation, screen scheduling (which screen shows when), and AI authoring of screens.
+Multi-symbol markets rotation, time-of-day screen scheduling, a remote control channel (HTTP/MQTT) writing into the global model, and AI authoring of screens.
 The riddle and Bondi pages are retired; trivia replaces the riddle, and `screens/guest.json` is the Bondi layout (picture
 plus speech bubble) rebuilt from widgets.

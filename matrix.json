@@ -1,0 +1,15 @@
+{
+  "power": true,
+  "brightness": 60,
+  "rotation": {
+    "screens": ["subway", "weather", "markets"],
+    "dwell": 20
+  },
+  "screens": {
+    "markets": {
+      "sources": {
+        "/market": {"symbol": "^GSPC", "range": "intraday"}
+      }
+    }
+  }
+}

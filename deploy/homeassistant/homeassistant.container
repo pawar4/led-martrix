@@ -1,0 +1,33 @@
+# Podman Quadlet for Home Assistant on the Pi (Linux, systemd).
+#
+# Install (rootless, as the user that owns the config dir):
+#   mkdir -p ~/.config/containers/systemd ~/homeassistant/config
+#   cp homeassistant.container ~/.config/containers/systemd/
+#   systemctl --user daemon-reload
+#   systemctl --user start homeassistant
+#   loginctl enable-linger $USER      # keep it running after logout / start at boot
+#
+# UI: http://<pi-host>:8123
+
+[Unit]
+Description=Home Assistant
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/home-assistant/home-assistant:stable
+ContainerName=homeassistant
+# Host networking so mDNS / device discovery works and HA can reach the
+# matrix service on localhost.
+Network=host
+Volume=%h/homeassistant/config:/config:Z
+Volume=/etc/localtime:/etc/localtime:ro
+Environment=TZ=America/New_York
+AutoUpdate=registry
+
+[Service]
+Restart=always
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

@@ -120,3 +120,20 @@ mode the widget is skipped and the problem is printed once.
 or pass `--data other.json` to try edge cases. In the live preview the file is a `file` source, so edits
 show up on screen without a restart. `--png` loads it once. `--live` ignores it and runs the screen's
 [`sources`](#data-sources) instead.
+
+## Global model
+
+`python run.py [--live] [--config matrix.json] [--screens screens]` runs the matrix from one global model,
+loaded from `matrix.json` and reloaded whenever the file changes:
+
+| key | meaning |
+|---|---|
+| `power` | `false` blanks the matrix (default `true`) |
+| `brightness` | 1 to 100 |
+| `screen` | pin a screen by name (`screens/<name>.json`); wins over the rotation |
+| `rotation` | `{"screens": ["subway", "weather"], "dwell": 20}`, seconds per screen (default 20) |
+| `screens.<name>.sources.<mount>` | params merged over that screen's source with the same `mount`, e.g. `{"symbol": "AAPL"}` |
+
+Overrides go through the normal source validation. An unknown screen, bad override, or unknown mount logs an
+error, sets `/status/error` and leaves the current screen running. `preview.py` still renders a single
+screen and ignores the global model.

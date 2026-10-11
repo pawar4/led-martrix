@@ -8,7 +8,17 @@ DataModel (/a/b paths) ───────────────────
 Sources (threads, from the config's "sources") ┘
 ```
 
+## Global model and runner
+
+`run.py` mounts `matrix.json` into one global `DataModel` at `/app` (reloaded when the file changes) and
+hands it to `App` (`matrix_ui/app.py`), which each frame picks the screen, rebuilds it when its source
+overrides change, and applies brightness. Screens keep their own per-screen `DataModel`, so their bindings
+are unchanged. See [screen-config.md](screen-config.md#global-model) for the keys. `App` writes
+`/status/active` and `/status/error` (a bad screen name or override keeps the old screen up).
+
 ## Modules (`matrix_ui/`)
+
+- `app.py`: `App`, the global-model controller (screen choice, rotation, power, brightness, per-screen source overrides).
 
 - `resolver.py`: `Surface.load(path|dict)` validates the config and builds the tree.
   `Surface.render(canvas, dm, fonts, graphics, now=None, strict=False)` resolves bindings and renders
