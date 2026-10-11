@@ -1,0 +1,4 @@
+# Off-Pi preview/testing. On the Pi the real `rgbmatrix` bindings are used instead.
+RGBMatrixEmulator
+Pillow
+pytest

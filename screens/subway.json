@@ -1,0 +1,75 @@
+{
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "component": "Column",
+      "children": [
+        "header",
+        "row_e",
+        "row_7"
+      ]
+    },
+    {
+      "id": "header",
+      "component": "Row",
+      "height": 13,
+      "padding": [
+        1,
+        0,
+        0,
+        2
+      ],
+      "children": [
+        "wx_icon",
+        "wx_temp",
+        "clock"
+      ]
+    },
+    {
+      "id": "wx_icon",
+      "component": "Icon",
+      "width": 12,
+      "weather_code": {
+        "path": "/weather/code"
+      }
+    },
+    {
+      "id": "wx_temp",
+      "component": "Text",
+      "width": 20,
+      "text": {
+        "path": "/weather/temp_label"
+      }
+    },
+    {
+      "id": "clock",
+      "component": "Clock",
+      "format": "%H:%M"
+    },
+    {
+      "id": "row_e",
+      "component": "TrainRow",
+      "height": 22,
+      "route": "E",
+      "name": {
+        "path": "/trains/E/name"
+      },
+      "arrivals": {
+        "path": "/trains/E/arrivals"
+      }
+    },
+    {
+      "id": "row_7",
+      "component": "TrainRow",
+      "height": 22,
+      "route": "7",
+      "name": {
+        "path": "/trains/7/name"
+      },
+      "arrivals": {
+        "path": "/trains/7/arrivals"
+      }
+    }
+  ]
+}
