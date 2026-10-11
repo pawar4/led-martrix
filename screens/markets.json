@@ -1,0 +1,96 @@
+{
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "component": "Column",
+      "children": [
+        "head",
+        "quote",
+        "chart"
+      ]
+    },
+    {
+      "id": "head",
+      "component": "Row",
+      "height": 8,
+      "children": [
+        "label",
+        "range"
+      ]
+    },
+    {
+      "id": "label",
+      "component": "Text",
+      "color": "white",
+      "text": {
+        "path": "/market/label"
+      }
+    },
+    {
+      "id": "range",
+      "component": "Text",
+      "width": 16,
+      "align": "right",
+      "color": "dim",
+      "text": {
+        "path": "/market/range_label"
+      }
+    },
+    {
+      "id": "quote",
+      "component": "Row",
+      "height": 9,
+      "children": [
+        "price",
+        "change"
+      ]
+    },
+    {
+      "id": "price",
+      "component": "Text",
+      "width": 34,
+      "text": {
+        "path": "/market/price_label"
+      }
+    },
+    {
+      "id": "change",
+      "component": "Text",
+      "align": "right",
+      "color": {
+        "path": "/market/color"
+      },
+      "text": {
+        "path": "/market/change_label"
+      }
+    },
+    {
+      "id": "chart",
+      "component": "LineChart",
+      "color": "white",
+      "fill": [
+        16,
+        32,
+        70
+      ],
+      "baseline_color": "orange",
+      "values": {
+        "path": "/market/values"
+      },
+      "baseline": {
+        "path": "/market/baseline"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "type": "market_quote",
+      "mount": "/market",
+      "symbol": "SPY",
+      "label": "SPY",
+      "range": "intraday",
+      "interval": 60
+    }
+  ]
+}

@@ -191,3 +191,36 @@ def test_weather_sample_screen_renders():
     assert texts[0] == "Sat Oct 17"
     assert texts[1:5] == ["6am", "56F", "9am", "62F"]
     assert len(texts) == 1 + 6 * 2
+
+
+def test_markets_sample_screen_renders():
+    data = json.load(open(os.path.join(ROOT, "screens/markets.sample_data.json")))
+    canvas, gfx = render(os.path.join(ROOT, "screens/markets.json"), data)
+    texts = {t[3]: t for t in gfx.texts}
+    assert texts["SPY"][2] == (255, 255, 255)
+    assert texts["+0.60%"][2] == (0, 220, 0)
+    chart = {xy: c for xy, c in canvas.pixels.items() if xy[1] >= 20 and c == (255, 255, 255)}
+    assert sorted({x for x, _ in chart}) == list(range(64))         # one connected line across the width
+
+
+def test_line_chart_scales_min_to_bottom_and_max_to_top():
+    cfg = screen({"id": "c", "component": "LineChart", "values": [1, 3, 2], "color": "red"}, root="c")
+    pixels = render(cfg)[0].pixels
+    assert pixels[(0, 63)] == (220, 0, 0)       # min at the bottom-left
+    assert {x for x, y in pixels if y <= 1} <= set(range(28, 36))      # the peak, near the top-middle
+    assert min(y for _, y in pixels) <= 1
+    assert render(screen({"id": "c", "component": "LineChart"}, root="c"))[0].pixels == {}
+
+
+def test_line_chart_baseline_is_dotted_and_scaled():
+    cfg = screen({"id": "c", "component": "LineChart", "values": [2, 3], "baseline": 1}, root="c")
+    pixels = render(cfg)[0].pixels
+    assert pixels[(0, 63)] == pixels[(1, 63)] == (60, 60, 60)       # baseline is the minimum, on the bottom row
+    assert (2, 63) not in pixels                                     # ... and dashed
+
+
+def test_line_chart_fill_shades_below_the_line_only():
+    cfg = screen({"id": "c", "component": "LineChart", "values": [1, 3], "color": "red", "fill": [0, 0, 90]}, root="c")
+    pixels = render(cfg)[0].pixels
+    assert pixels[(63, 0)] == (220, 0, 0) and pixels[(63, 63)] == (0, 0, 90)    # line on top, fill under it
+    assert (63, 0) in pixels and not any(c == (0, 0, 90) for xy, c in pixels.items() if xy[1] <= 0)

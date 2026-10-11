@@ -36,12 +36,20 @@ writes into the data model under its own `mount` path, and the component binding
 | `http_json` | `url*`, `headers`, `interval` (30) | the response body |
 | `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
 | `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
+| `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values}` (Yahoo Finance, no key) |
 | `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, arrivals}}` (nyct-gtfs) |
 
 `weather_forecast` `day` is `today`, `tomorrow` or a `YYYY-MM-DD` date (Open-Meteo forecasts go about 16 days ahead);
 `step_hours` must divide 24. Slots run from `start_hour` to `end_hour` (inclusive, 0-23), so the defaults give
 6am, 9am, 12pm, 3pm, 6pm, 9pm (10pm isn't a 3-hour step from 6am). "today" follows the
 machine's clock.
+
+`market_quote` `range` picks the chart: `intraday` is today's session at 5-minute steps, with the change measured
+against the previous close; `3day` is the last three trading days at 15-minute steps, with the change measured
+from the first point. `color` is `green` or `red` (bind it to the chart and change line), `baseline` is the
+reference price, and `values` is the price series for `LineChart`. Symbols are Yahoo's (`^GSPC`, `AAPL`, `BTC-USD`).
+To switch charts, change `range` in the screen's source. Outside market hours the intraday chart shows the last
+session.
 
 `mta_arrivals` stations look like `{"E": {"stop_id": "F09", "direction": "S", "name": "Court Sq"}}`.
 `${NAME}` in `http_json` URLs and headers is replaced from the environment, so keys stay out of the file.

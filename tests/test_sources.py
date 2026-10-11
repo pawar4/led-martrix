@@ -148,3 +148,40 @@ def test_fetch_forecast_samples_every_step(monkeypatch):
                             {"hour": "6pm", "code": 18, "temp_label": "18F"}]
     default = providers.fetch_forecast(1, 2, "2026-10-17")      # 6am to 10pm every 3 hours
     assert [s["hour"] for s in default["slots"]] == ["6am", "9am", "12pm", "3pm", "6pm", "9pm"]
+
+
+def _chart(day_count, per_day=3):
+    base = 1_760_000_000      # a Tuesday, 2025
+    ts, closes = [], []
+    for d in range(day_count):
+        for i in range(per_day):
+            ts.append(base + d * 86400 + i * 900)
+            closes.append(100 + d * 10 + i)
+    return ts, closes
+
+
+def test_quote_intraday_uses_previous_close_for_change():
+    from matrix_ui.providers import quote_from_chart
+    ts, closes = _chart(1)
+    meta = {"regularMarketPrice": 110.0, "chartPreviousClose": 100.0, "gmtoffset": 0}
+    q = quote_from_chart("X", "Ex", "intraday", meta, ts, closes)
+    assert (q["label"], q["range_label"], q["price_label"], q["change_label"], q["color"]) == ("Ex", "1D", "110.00", "+10.00%", "green")
+    assert q["baseline"] == 100.0 and q["values"] == closes
+
+
+def test_quote_3day_keeps_last_three_days_and_skips_gaps():
+    from matrix_ui.providers import quote_from_chart
+    ts, closes = _chart(5)
+    closes[7] = None
+    q = quote_from_chart("X", None, "3day", {"regularMarketPrice": 90.0, "gmtoffset": 0}, ts, closes)
+    assert len(q["values"]) == 8 and q["values"][0] == 120      # days 2-4, one gap dropped
+    assert q["label"] == "X" and q["range_label"] == "3D"
+    assert q["baseline"] == 120 and q["change_label"] == "-25.00%" and q["color"] == "red"
+
+
+def test_market_quote_source_validation():
+    assert build_source({"type": "market_quote", "mount": "/m", "symbol": "^GSPC", "range": "3day"}).mount == "/m"
+    with pytest.raises(ConfigError, match="intraday"):
+        build_source({"type": "market_quote", "mount": "/m", "symbol": "X", "range": "week"})
+    with pytest.raises(ConfigError, match="'symbol' is required"):
+        build_source({"type": "market_quote", "mount": "/m"})

@@ -15,6 +15,7 @@ pytest tests/
 python preview.py screens/subway.json              # emulator in the browser, http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
 python preview.py screens/weather.json             # 3-hour forecast for one day (set "day" in its source)
+python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 
@@ -39,5 +40,5 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 ## Not done yet
 
-Live sources for the markets and riddle screens, porting the markets/riddle/Bondi screens, screen scheduling,
+Porting the riddle/Bondi screens, multi-symbol markets rotation, screen scheduling,
 and AI authoring of screens.

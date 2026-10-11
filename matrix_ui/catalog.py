@@ -79,6 +79,18 @@ def v_int_list(v):
     return v
 
 
+def v_number(v):
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        raise ValueError(f"expected number, got {v!r}")
+    return v
+
+
+def v_number_list(v):
+    if not isinstance(v, list) or not all(isinstance(i, (int, float)) and not isinstance(i, bool) for i in v):
+        raise ValueError(f"expected list of numbers, got {v!r}")
+    return v
+
+
 def v_padding(v):
     if isinstance(v, int) and not isinstance(v, bool):
         return v
@@ -306,3 +318,44 @@ class ForecastSlot(Widget):
         draw_aligned_text(ctx, text_rect, p["hour"], p["hour_color"], "tiny", "left")
         draw_aligned_text(ctx, Rect(text_rect.x, top + 6, text_rect.w, 8),
                           p["temp"], p["temp_color"], "small", "left")
+
+
+@register("LineChart")
+class LineChart(Widget):
+    """Line chart of `values` stretched to the box width and scaled to its height (min to max).
+    `fill` shades the area under the line. `baseline` (e.g. the previous close) is drawn as a dashed
+    line and included in the scale."""
+    props = {"values": (v_number_list, []), "color": (v_color, COLORS["green"]), "fill": (v_color, None),
+             "baseline": (v_number, None), "baseline_color": (v_color, (60, 60, 60))}
+
+    def render(self, ctx, rect, p, node):
+        values, baseline = p["values"], p["baseline"]
+        if not values or rect.w < 1 or rect.h < 1:
+            return
+        scale = values + ([baseline] if baseline is not None else [])
+        lo, hi = min(scale), max(scale)
+
+        def row(v):         # bottom row is the minimum; a flat series sits in the middle
+            if hi == lo:
+                return rect.y + (rect.h - 1) // 2
+            return rect.y + rect.h - 1 - round((v - lo) / (hi - lo) * (rect.h - 1))
+
+        ys = []
+        for i in range(rect.w):
+            pos = i * (len(values) - 1) / (rect.w - 1) if rect.w > 1 else 0
+            j = int(pos)
+            ys.append(row(values[j] + (values[min(j + 1, len(values) - 1)] - values[j]) * (pos - j)))
+        if p["fill"] is not None:
+            for i, y in enumerate(ys):
+                for yy in range(y + 1, rect.y + rect.h):
+                    ctx.canvas.SetPixel(rect.x + i, yy, *p["fill"])
+        if baseline is not None:
+            for x in range(rect.x, rect.x + rect.w):
+                if (x - rect.x) % 4 < 2:
+                    ctx.canvas.SetPixel(x, row(baseline), *p["baseline_color"])
+        prev = None
+        for i, y in enumerate(ys):
+            # Join to the previous column so steep moves stay a connected line.
+            for yy in range(min(y, prev if prev is not None else y), max(y, prev if prev is not None else y) + 1):
+                ctx.canvas.SetPixel(rect.x + i, yy, *p["color"])
+            prev = y
