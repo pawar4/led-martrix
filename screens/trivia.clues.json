@@ -1,0 +1,194 @@
+[
+  {
+    "category": "Science",
+    "value": 200,
+    "clue": "The only planet in our solar system not named for a god",
+    "answer": "What is Earth?"
+  },
+  {
+    "category": "Science",
+    "value": 400,
+    "clue": "This gas makes up about 78% of Earth's air",
+    "answer": "What is nitrogen?"
+  },
+  {
+    "category": "Science",
+    "value": 600,
+    "clue": "The powerhouse of the cell",
+    "answer": "What are mitochondria?"
+  },
+  {
+    "category": "Science",
+    "value": 800,
+    "clue": "Element with the symbol Au",
+    "answer": "What is gold?"
+  },
+  {
+    "category": "Geography",
+    "value": 200,
+    "clue": "Capital of France",
+    "answer": "What is Paris?"
+  },
+  {
+    "category": "Geography",
+    "value": 400,
+    "clue": "Longest river in Africa",
+    "answer": "What is the Nile?"
+  },
+  {
+    "category": "Geography",
+    "value": 600,
+    "clue": "The smallest country in the world",
+    "answer": "What is Vatican City?"
+  },
+  {
+    "category": "Geography",
+    "value": 800,
+    "clue": "Mount Kilimanjaro is in this country",
+    "answer": "What is Tanzania?"
+  },
+  {
+    "category": "Food & Drink",
+    "value": 200,
+    "clue": "Dried grapes are called this",
+    "answer": "What are raisins?"
+  },
+  {
+    "category": "Food & Drink",
+    "value": 400,
+    "clue": "Sushi is traditionally wrapped in this seaweed",
+    "answer": "What is nori?"
+  },
+  {
+    "category": "Food & Drink",
+    "value": 600,
+    "clue": "Italian cheese in classic tiramisu",
+    "answer": "What is mascarpone?"
+  },
+  {
+    "category": "Food & Drink",
+    "value": 800,
+    "clue": "Spice made from the crocus flower",
+    "answer": "What is saffron?"
+  },
+  {
+    "category": "Movies",
+    "value": 200,
+    "clue": "Clownfish dad searching for his son",
+    "answer": "What is Finding Nemo?"
+  },
+  {
+    "category": "Movies",
+    "value": 400,
+    "clue": "Hobbit who carries the One Ring",
+    "answer": "Who is Frodo?"
+  },
+  {
+    "category": "Movies",
+    "value": 600,
+    "clue": "Director of Jaws and E.T.",
+    "answer": "Who is Steven Spielberg?"
+  },
+  {
+    "category": "Movies",
+    "value": 800,
+    "clue": "1994 film where Tom Hanks says life is like a box of chocolates",
+    "answer": "What is Forrest Gump?"
+  },
+  {
+    "category": "History",
+    "value": 200,
+    "clue": "Year Columbus sailed the ocean blue",
+    "answer": "What is 1492?"
+  },
+  {
+    "category": "History",
+    "value": 400,
+    "clue": "First U.S. president",
+    "answer": "Who is George Washington?"
+  },
+  {
+    "category": "History",
+    "value": 600,
+    "clue": "Ancient wonder in Egypt still standing today",
+    "answer": "What is the Great Pyramid?"
+  },
+  {
+    "category": "History",
+    "value": 800,
+    "clue": "Wall that fell in Berlin in 1989",
+    "answer": "What is the Berlin Wall?"
+  },
+  {
+    "category": "Animals",
+    "value": 200,
+    "clue": "A baby kangaroo is called this",
+    "answer": "What is a joey?"
+  },
+  {
+    "category": "Animals",
+    "value": 400,
+    "clue": "The fastest land animal",
+    "answer": "What is the cheetah?"
+  },
+  {
+    "category": "Animals",
+    "value": 600,
+    "clue": "An octopus has this many hearts",
+    "answer": "What is three?"
+  },
+  {
+    "category": "Animals",
+    "value": 800,
+    "clue": "A group of crows is called this",
+    "answer": "What is a murder?"
+  },
+  {
+    "category": "NYC",
+    "value": 200,
+    "clue": "Green lady in New York Harbor",
+    "answer": "What is the Statue of Liberty?"
+  },
+  {
+    "category": "NYC",
+    "value": 400,
+    "clue": "Park that runs from 59th to 110th Street",
+    "answer": "What is Central Park?"
+  },
+  {
+    "category": "NYC",
+    "value": 600,
+    "clue": "Borough home to Coney Island",
+    "answer": "What is Brooklyn?"
+  },
+  {
+    "category": "NYC",
+    "value": 800,
+    "clue": "The E train runs through this Queens neighborhood, Court Sq's home",
+    "answer": "What is Long Island City?"
+  },
+  {
+    "category": "History",
+    "value": 1000,
+    "clue": "In 1969 this Apollo 11 astronaut became the first person to walk on the moon, saying one small step for man",
+    "answer": "Who is Neil Armstrong?"
+  },
+  {
+    "category": "Science",
+    "value": 1000,
+    "clue": "This force, described by Isaac Newton after watching an apple fall, keeps the planets in orbit around the sun",
+    "answer": "What is gravity?"
+  },
+  {
+    "category": "Food & Drink",
+    "value": 1000,
+    "clue": "This Japanese dish of vinegared rice topped with raw fish is often served with wasabi, pickled ginger and soy sauce",
+    "answer": "What is sushi?"
+  },
+  {
+    "category": "NYC",
+    "value": 1000,
+    "clue": "Opened in 1904, this system's first line ran from City Hall north to 145th Street and Broadway, and the E train is part of it today",
+    "answer": "What is the New York City subway?"
+  }
+]

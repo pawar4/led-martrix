@@ -164,6 +164,33 @@ def draw_badge(ctx, rect, route, color, radius):
               route, COLORS["white"], "large")
 
 
+def wrap_text(font, text, width):
+    """Greedy word wrap to `width` pixels; a word wider than the box is split across lines."""
+    lines, line = [], ""
+    for word in text.split():
+        while text_width(font, word) > width:
+            if line:
+                lines.append(line)
+                line = ""
+            head = fit_text(font, word, width)
+            if not head:            # not even one glyph fits
+                return lines
+            lines.append(head)
+            word = word[len(head):]
+        if not word:
+            continue
+        if not line:
+            line = word
+        elif text_width(font, line + " " + word) <= width:
+            line += " " + word
+        else:
+            lines.append(line)
+            line = word
+    if line:
+        lines.append(line)
+    return lines
+
+
 def format_arrivals(minutes, font=None, max_width=None):
     """Join arrival times, dropping trailing ones until the line fits `max_width`."""
     minutes = list(minutes)
@@ -359,3 +386,53 @@ class LineChart(Widget):
             for yy in range(min(y, prev if prev is not None else y), max(y, prev if prev is not None else y) + 1):
                 ctx.canvas.SetPixel(rect.x + i, yy, *p["color"])
             prev = y
+
+
+@register("Fill")
+class Fill(Widget):
+    """Solid rectangle; put it first in a `Stack` for a background."""
+    props = {"color": (v_color, COLORS["black"])}
+
+    def render(self, ctx, rect, p, node):
+        for y in range(rect.y, rect.y + rect.h):
+            for x in range(rect.x, rect.x + rect.w):
+                ctx.canvas.SetPixel(x, y, *p["color"])
+
+
+@register("ProgressBar")
+class ProgressBar(Widget):
+    """Horizontal bar filled left to right by `value` (0 to 1), drawn over an optional `track` colour."""
+    props = {"value": (v_number, 0), "color": (v_color, COLORS["green"]), "track": (v_color, None)}
+
+    def render(self, ctx, rect, p, node):
+        filled = round(min(max(p["value"], 0), 1) * rect.w)
+        for y in range(rect.y, rect.y + rect.h):
+            for x in range(rect.x, rect.x + rect.w):
+                color = p["color"] if x - rect.x < filled else p["track"]
+                if color is not None:
+                    ctx.canvas.SetPixel(x, y, *color)
+
+
+@register("WrapText")
+class WrapText(Widget):
+    """Text word-wrapped to its box, top-aligned, one line per `font.height + line_gap`. Text taller than
+    the box scrolls a whole line at a time: `scroll` (0 to 1) picks the window, 0 showing the first lines
+    and 1 the last. Bind it to a value that moves over time; with text that fits it does nothing."""
+    props = {
+        "text": (v_text, ""),
+        "color": (v_color, COLORS["white"]),
+        "font": (v_oneof(*FONT_NAMES), "small"),
+        "align": (v_oneof("left", "center", "right"), "left"),
+        "line_gap": (v_int, 1),
+        "scroll": (v_number, 0),
+    }
+
+    def render(self, ctx, rect, p, node):
+        font = ctx.fonts[p["font"]]
+        pitch = font.height + p["line_gap"]
+        lines = wrap_text(font, p["text"], rect.w)
+        visible = (rect.h - font.height) // pitch + 1 if rect.h >= font.height else 0
+        first = round(min(max(p["scroll"], 0), 1) * max(len(lines) - visible, 0))
+        for i, line in enumerate(lines[first:first + visible]):
+            draw_aligned_text(ctx, Rect(rect.x, rect.y + i * pitch, rect.w, font.height),
+                              line, p["color"], p["font"], p["align"])

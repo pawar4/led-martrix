@@ -1,0 +1,125 @@
+{
+  "root": "root",
+  "sources": [
+    {
+      "type": "trivia",
+      "mount": "/trivia",
+      "path": "screens/trivia.clues.json",
+      "question_seconds": 15,
+      "reveal_seconds": 5,
+      "questions": 5
+    }
+  ],
+  "components": [
+    {
+      "id": "root",
+      "component": "Stack",
+      "children": [
+        "bg",
+        "content"
+      ]
+    },
+    {
+      "id": "bg",
+      "component": "Fill",
+      "color": [
+        6,
+        12,
+        120
+      ]
+    },
+    {
+      "id": "content",
+      "component": "Column",
+      "children": [
+        "category",
+        "value_row",
+        "bar",
+        "body"
+      ],
+      "padding": 2,
+      "gap": 1
+    },
+    {
+      "id": "category",
+      "component": "Text",
+      "height": 8,
+      "font": "tiny",
+      "align": "center",
+      "color": "white",
+      "text": {
+        "path": "/trivia/category"
+      }
+    },
+    {
+      "id": "value_row",
+      "component": "Row",
+      "height": 9,
+      "children": [
+        "spacer",
+        "value",
+        "count"
+      ]
+    },
+    {
+      "id": "spacer",
+      "component": "Text",
+      "width": 16
+    },
+    {
+      "id": "value",
+      "component": "Text",
+      "align": "center",
+      "color": "yellow",
+      "text": {
+        "path": "/trivia/value_label"
+      }
+    },
+    {
+      "id": "count",
+      "component": "Text",
+      "width": 16,
+      "font": "tiny",
+      "align": "right",
+      "color": [
+        130,
+        160,
+        255
+      ],
+      "text": {
+        "path": "/trivia/count_label"
+      }
+    },
+    {
+      "id": "body",
+      "component": "WrapText",
+      "font": "tiny",
+      "align": "center",
+      "color": {
+        "path": "/trivia/body_color"
+      },
+      "text": {
+        "path": "/trivia/body"
+      },
+      "scroll": {
+        "path": "/trivia/scroll"
+      }
+    },
+    {
+      "id": "bar",
+      "component": "ProgressBar",
+      "height": 4,
+      "track": [
+        3,
+        6,
+        70
+      ],
+      "color": {
+        "path": "/trivia/bar_color"
+      },
+      "value": {
+        "path": "/trivia/progress"
+      }
+    }
+  ]
+}

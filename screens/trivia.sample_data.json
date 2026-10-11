@@ -1,0 +1,13 @@
+{
+  "trivia": {
+    "category": "GEOGRAPHY",
+    "value_label": "$600",
+    "phase": "question",
+    "body": "THE SMALLEST COUNTRY IN THE WORLD",
+    "body_color": "white",
+    "bar_color": "yellow",
+    "progress": 0.6,
+    "scroll": 0,
+    "count_label": "3/5"
+  }
+}

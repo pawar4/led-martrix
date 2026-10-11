@@ -16,6 +16,7 @@ python preview.py screens/subway.json              # emulator in the browser, ht
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
 python preview.py screens/weather.json             # 3-hour forecast for one day (set "day" in its source)
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
+python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 
@@ -40,5 +41,5 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 ## Not done yet
 
-Porting the riddle/Bondi screens, multi-symbol markets rotation, screen scheduling,
-and AI authoring of screens.
+Multi-symbol markets rotation, screen scheduling (which screen shows when), and AI authoring of screens.
+The riddle and Bondi pages are retired; trivia replaces the riddle.

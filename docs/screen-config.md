@@ -37,6 +37,7 @@ writes into the data model under its own `mount` path, and the component binding
 | `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
 | `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
 | `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values}` (Yahoo Finance, no key) |
+| `trivia` | `path*`, `question_seconds` (15), `reveal_seconds` (5), `questions` (5), `provider` (`local`), `difficulty` | `{category, value_label, count_label, phase, body, body_color, bar_color, progress, scroll}` (a local clue bank) |
 | `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, arrivals}}` (nyct-gtfs) |
 
 `weather_forecast` `day` is `today`, `tomorrow` or a `YYYY-MM-DD` date (Open-Meteo forecasts go about 16 days ahead);
@@ -50,6 +51,32 @@ from the first point. `color` is `green` or `red` (bind it to the chart and chan
 reference price, and `values` is the price series for `LineChart`. Symbols are Yahoo's (`^GSPC`, `AAPL`, `BTC-USD`).
 To switch charts, change `range` in the screen's source. Outside market hours the intraday chart shows the last
 session.
+
+`trivia` plays one round of `questions` clues (1 to 50, default 5), then stops on the last answer (no new round, no refetch). It reads a
+clue bank (a JSON list of `{category, value, clue, answer}`, relative to where you run from; see
+`screens/trivia.clues.json`) and plays it in shuffled order, with no repeats until every clue has been used, even
+across rounds. The bank is read once at startup.
+
+Each clue is a `question` phase (`body` is the upper-cased clue, white, `progress` drains from 1 to 0 over
+`question_seconds`) followed by a `reveal` phase (`body` is the answer, green, `progress` drains over
+`reveal_seconds`). `count_label` is the position in the round (`2/5`). `scroll` (0 to 1) rests at 0 for 1.5 seconds,
+moves through the text, then rests at 1 for 1.5 seconds, once per phase; bind it to `WrapText`'s `scroll` so long
+clues and answers step down. `bar_color` is `yellow` then `green` and `body_color` `white` then `green`; bind them to
+the widgets. The source republishes ten times a second, so the screen needs no clock.
+
+The body box in `screens/trivia.json` shows 5 lines of about 15 characters in the 4x6 font; longer text scrolls, so a
+clue of about 100 characters or more needs most of `question_seconds` to read. Keep answers short, since
+`reveal_seconds` is brief.
+
+`provider` `opentdb` plays fresh multiple-choice questions from [Open Trivia DB](https://opentdb.com) (free, no key)
+instead of the bank: each round fetches `questions` questions (optionally only `difficulty` `easy`, `medium` or
+`hard`) and plays them in order, fetching again for the next round. The options are appended to the clue as
+`A) ... B) ... C) ... D) ...` and the reveal shows the right letter and text (`C) Mercury`). The category is the part
+after the colon (`Science: Computers` becomes `Computers`), and the value follows the difficulty ($200, $600,
+$1000). If a fetch fails (offline, rate limited at one request per 5 seconds, a bad response), that round plays the
+local bank at `path` instead, so `path` is required either way. The screen stalls on its last frame while a fetch is
+in progress, up to 10 seconds. These clues run long, so raise `question_seconds` (20 is comfortable) to leave time to
+scroll through them.
 
 `mta_arrivals` stations look like `{"E": {"stop_id": "F09", "direction": "S", "name": "Court Sq"}}`.
 `${NAME}` in `http_json` URLs and headers is replaced from the environment, so keys stay out of the file.

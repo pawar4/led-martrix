@@ -224,3 +224,60 @@ def test_line_chart_fill_shades_below_the_line_only():
     pixels = render(cfg)[0].pixels
     assert pixels[(63, 0)] == (220, 0, 0) and pixels[(63, 63)] == (0, 0, 90)    # line on top, fill under it
     assert (63, 0) in pixels and not any(c == (0, 0, 90) for xy, c in pixels.items() if xy[1] <= 0)
+
+# ---- trivia widgets ----
+
+def boxed(widget):
+    """A screen with `widget` at the top-left of the canvas, sized by its own width/height."""
+    return screen({"id": "root", "component": "Stack", "children": [widget["id"]]}, widget)
+
+
+def test_wrap_text_breaks_on_words_and_splits_long_ones():
+    from matrix_ui.catalog import wrap_text
+    font = FakeFont()           # 5px per character
+    assert wrap_text(font, "ONE TWO THREE", 50) == ["ONE TWO", "THREE"]
+    assert wrap_text(font, "ABCDEFGHIJKL MN", 25) == ["ABCDE", "FGHIJ", "KL MN"]
+    assert wrap_text(font, "", 50) == []
+    assert wrap_text(font, "WIDE", 4) == []         # not even one glyph fits
+
+
+def test_wrap_text_widget_drops_lines_that_do_not_fit():
+    _, gfx = render(boxed({"id": "w", "component": "WrapText", "text": "AAAA BBBB CCCC DDDD",
+                           "width": 20, "height": 20, "font": "small", "line_gap": 2}))
+    assert [t[3] for t in gfx.texts] == ["AAAA", "BBBB"]         # 8px lines every 10px: two fit in 20px
+    assert [t[1] for t in gfx.texts] == [7, 17]
+
+
+def test_wrap_text_scroll_moves_a_window_of_whole_lines():
+    def shown(scroll):
+        _, gfx = render(boxed({"id": "w", "component": "WrapText", "text": "A B C D E", "width": 5,
+                               "height": 20, "font": "small", "line_gap": 2, "scroll": scroll}))
+        return [t[3] for t in gfx.texts]
+    assert shown(0) == ["A", "B"]           # five one-letter lines, two visible
+    assert shown(0.5) == ["C", "D"]
+    assert shown(1) == ["D", "E"]
+    assert shown(7) == ["D", "E"] and shown(-1) == ["A", "B"]
+
+
+def test_progress_bar_fills_proportionally_and_clamps():
+    def filled(value):
+        canvas, _ = render(boxed({"id": "w", "component": "ProgressBar", "width": 20, "height": 2,
+                                  "value": value, "color": "red"}))
+        return {x for (x, y), c in canvas.pixels.items() if c == (220, 0, 0) and y == 0}
+    assert filled(0.5) == set(range(10))
+    assert filled(2) == set(range(20))
+    assert filled(-1) == set()
+
+
+def test_fill_paints_the_box():
+    canvas, _ = render(boxed({"id": "w", "component": "Fill", "width": 3, "height": 2, "color": [1, 2, 3]}))
+    assert canvas.pixels == {(x, y): (1, 2, 3) for x in range(3) for y in range(2)}
+
+
+def test_trivia_screen_renders_sample_data():
+    with open(os.path.join(ROOT, "screens", "trivia.sample_data.json")) as f:
+        data = json.load(f)
+    _, gfx = render(os.path.join(ROOT, "screens", "trivia.json"), data)
+    texts = [t[3] for t in gfx.texts if t[3]]
+    assert texts[:3] == ["GEOGRAPHY", "$600", "3/5"]
+    assert "".join(texts[3:]).replace(" ", "") == "THESMALLESTCOUNTRYINTHEWORLD"

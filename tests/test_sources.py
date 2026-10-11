@@ -185,3 +185,164 @@ def test_market_quote_source_validation():
         build_source({"type": "market_quote", "mount": "/m", "symbol": "X", "range": "week"})
     with pytest.raises(ConfigError, match="'symbol' is required"):
         build_source({"type": "market_quote", "mount": "/m"})
+
+
+# ---- trivia ----
+
+CLUES = [{"category": "Science", "value": 200, "clue": "Planet we live on", "answer": "What is Earth?"},
+         {"category": "Geography", "value": 400, "clue": "Capital of France", "answer": "What is Paris?"}]
+
+
+def test_trivia_frame_runs_question_then_reveal():
+    from matrix_ui.providers import trivia_frame
+    q = trivia_frame(CLUES[0], 5, 20, 10, "2/5")
+    assert (q["phase"], q["category"], q["value_label"], q["body"], q["body_color"]) == \
+        ("question", "SCIENCE", "$200", "PLANET WE LIVE ON", "white")
+    assert q["progress"] == 0.75 and q["bar_color"] == "yellow" and q["scroll"] == pytest.approx(3.5 / 17) and q["count_label"] == "2/5"
+    r = trivia_frame(CLUES[0], 25, 20, 10)
+    assert (r["phase"], r["body"], r["body_color"], r["bar_color"]) == ("reveal", "What is Earth?", "green", "green")
+    assert r["progress"] == 0.5
+    assert trivia_frame(CLUES[0], 31, 20, 10)["progress"] == 0
+
+
+def test_scroll_position_holds_at_both_ends():
+    from matrix_ui.providers import scroll_position
+    assert [scroll_position(t, 15) for t in (0, 1.5, 7.5, 13.5, 15)] == [0, 0, 0.5, 1, 1]
+    assert scroll_position(1, 4) == 0 and scroll_position(3, 4) == 1      # short phases hold for a quarter each end
+
+
+def test_trivia_source_plays_each_clue_before_repeating():
+    import random
+    from matrix_ui.providers import TriviaSource
+    src = TriviaSource(CLUES, 1, 1, "/t", rng=random.Random(0))
+    first = src.order()
+    assert sorted(c["value"] for c in first) == [200, 400]
+    assert src.order(previous=first[0])[0] is not first[0]      # a new shuffle never opens with the last clue
+
+
+def test_trivia_source_publishes_both_phases():
+    from matrix_ui.providers import TriviaSource
+    t = [0.0]
+    src = TriviaSource(CLUES[:1], 1, 1, "/trivia", tick=0.01, clock=lambda: t.__setitem__(0, t[0] + 0.1) or t[0])
+    seen, dm = set(), DataModel()
+    src.start(dm)
+    try:
+        assert wait_for(lambda: seen.add(dm.get("/trivia/phase")) or seen >= {"question", "reveal"})
+    finally:
+        src.stop()
+
+
+def test_trivia_source_config_and_clue_bank(tmp_path):
+    import json as _json
+    from matrix_ui.providers import load_clues
+    bank = tmp_path / "c.json"
+    bank.write_text(_json.dumps(CLUES))
+    assert build_source({"type": "trivia", "mount": "/t", "path": str(bank), "question_seconds": 10}).mount == "/t"
+    assert load_clues(os.path.join(ROOT, "screens", "trivia.clues.json"))      # the shipped bank is valid
+    for bad, message in [("[]", "non-empty list"), ('[{"category": "x"}]', "clue 0 needs"),
+                         ('[{"category": "x", "value": "1", "clue": "c", "answer": "a"}]', "clue 0 needs"),
+                         ("nope", "cannot read")]:
+        bank.write_text(bad)
+        with pytest.raises(ConfigError, match=message):
+            build_source({"type": "trivia", "mount": "/t", "path": str(bank)})
+    with pytest.raises(ConfigError, match="cannot read"):
+        build_source({"type": "trivia", "mount": "/t", "path": str(tmp_path / "missing.json")})
+    with pytest.raises(ConfigError, match="positive"):
+        build_source({"type": "trivia", "mount": "/t", "path": str(bank), "reveal_seconds": 0})
+
+
+def test_trivia_screen_declares_its_source(monkeypatch):
+    monkeypatch.chdir(ROOT)
+    assert [s.mount for s in Surface.load(os.path.join(ROOT, "screens", "trivia.json")).sources] == ["/trivia"]
+
+
+def _opentdb_body(code=0):
+    from urllib.parse import quote
+    q = lambda s: quote(s, safe="")
+    return json.dumps({"response_code": code, "results": [] if code else [
+        {"category": q("Science: Computers"), "type": "multiple", "difficulty": "hard",
+         "question": q("What does CPU stand for?"), "correct_answer": q("Central Processing Unit"),
+         "incorrect_answers": [q("Core Power Unit"), q("Central Program Utility"), q("Computer & Peripheral Unit")]},
+        {"category": q("History"), "type": "multiple", "difficulty": "easy",
+         "question": q("Who painted the Mona Lisa?"), "correct_answer": q("Leonardo da Vinci"),
+         "incorrect_answers": [q("Michelangelo"), q("Raphael"), q("Donatello")]}]})
+
+
+def test_opentdb_results_become_clues(monkeypatch):
+    import io
+    import random
+    from matrix_ui import providers
+    seen = []
+    monkeypatch.setattr(providers.urllib.request, "urlopen",
+                        lambda url, timeout: seen.append(url) or io.StringIO(_opentdb_body()))
+    clues = providers.fetch_opentdb(2, "hard", rng=random.Random(1))
+    assert "amount=2" in seen[0] and "difficulty=hard" in seen[0] and "encode=url3986" in seen[0]
+    cpu, mona = clues
+    assert (cpu["category"], cpu["value"], mona["value"]) == ("Computers", 1000, 200)
+    assert cpu["clue"].startswith("What does CPU stand for? A) ")
+    assert "Computer & Peripheral Unit" in cpu["clue"]                    # percent-encoding decoded
+    letter, _, text = cpu["answer"].partition(") ")
+    assert text == "Central Processing Unit" and f"{letter}) {text}" in cpu["clue"]
+
+
+def test_opentdb_error_code_raises(monkeypatch):
+    import io
+    from matrix_ui import providers
+    monkeypatch.setattr(providers.urllib.request, "urlopen", lambda url, timeout: io.StringIO(_opentdb_body(5)))
+    with pytest.raises(ValueError, match="response_code 5"):
+        providers.fetch_opentdb()
+
+
+def test_trivia_round_uses_fetched_batch_and_falls_back_to_the_bank():
+    import random
+    from matrix_ui.providers import TriviaSource
+    batch = [{"category": "X", "value": 200, "clue": "c", "answer": "a"}]
+    asked = []
+    online = TriviaSource(CLUES, 1, 1, "/t", questions=3, rng=random.Random(0),
+                          fetch_batch=lambda n: asked.append(n) or batch * 5)
+    assert online.next_round() == batch * 3 and asked == [3]       # asks for a round's worth, plays only that
+
+    def down(n):
+        raise OSError("offline")
+    for fetch in (down, lambda n: []):
+        offline = TriviaSource(CLUES, 1, 1, "/t", rng=random.Random(0), fetch_batch=fetch)
+        assert sorted(c["value"] for c in offline.next_round()) == [200, 400]
+
+
+def test_trivia_provider_config(tmp_path):
+    bank = tmp_path / "c.json"
+    bank.write_text(json.dumps(CLUES))
+    spec = {"type": "trivia", "mount": "/t", "path": str(bank)}
+    assert build_source(spec).fetch_batch is None
+    assert build_source({**spec, "provider": "opentdb", "difficulty": "easy", "questions": 10}).fetch_batch is not None
+    for extra, message in [({"provider": "jservice"}, "opentdb"), ({"difficulty": "extreme"}, "easy"),
+                           ({"questions": 51}, "1 to 50"), ({"questions": 0}, "1 to 50")]:
+        with pytest.raises(ConfigError, match=message):
+            build_source({**spec, **extra})
+
+
+def test_trivia_rounds_are_the_requested_size_and_do_not_repeat_until_the_bank_is_used():
+    import random
+    from matrix_ui.providers import TriviaSource
+    bank = [{"category": "C", "value": 100 * i, "clue": f"q{i}", "answer": f"a{i}"} for i in range(1, 8)]
+    src = TriviaSource(bank, 1, 1, "/t", questions=3, rng=random.Random(2))
+    rounds = [src.next_round() for _ in range(4)]
+    assert all(len(r) == 3 for r in rounds)
+    for r in rounds:
+        assert len({c["value"] for c in r}) == 3                       # no clue twice within a round
+    first_seven = [c["value"] for r in rounds[:2] for c in r] + [c["value"] for c in rounds[2][:1]]
+    assert sorted(first_seven) == [100, 200, 300, 400, 500, 600, 700]  # the whole bank before any repeat
+    assert len(TriviaSource(CLUES, 1, 1, "/t", questions=9).next_round()) == 2      # a small bank caps the round
+
+
+def test_trivia_source_counts_through_the_round():
+    from matrix_ui.providers import TriviaSource
+    t = [0.0]
+    src = TriviaSource(CLUES, 1, 1, "/trivia", questions=2, tick=0.001,
+                       clock=lambda: t.__setitem__(0, t[0] + 0.5) or t[0])
+    seen, dm = [], DataModel()
+    src.start(dm)
+    try:
+        assert wait_for(lambda: seen.append(dm.get("/trivia/count_label")) or {"1/2", "2/2"} <= set(seen))
+    finally:
+        src.stop()

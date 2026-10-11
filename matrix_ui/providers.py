@@ -1,11 +1,16 @@
 """Source types for specific services. Importing this module registers them."""
 import json
+import logging
+import random
+import time
 import urllib.parse
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
 from .resolver import ConfigError
-from .sources import REQUIRED, PollingSource, source_type, v_interval, v_number, v_str
+from .sources import REQUIRED, PollingSource, Source, source_type, v_interval, v_number, v_str
+
+log = logging.getLogger(__name__)
 
 
 def fetch_weather(lat, lon, units="fahrenheit", timeout=10):
@@ -113,6 +118,140 @@ def fetch_arrivals(stations, walk_minutes, max_arrivals):
     return out
 
 
+def load_clues(path):
+    """Read a clue bank: a JSON list of {category, value, clue, answer}."""
+    try:
+        with open(path) as f:
+            clues = json.load(f)
+    except (OSError, ValueError) as e:
+        raise ValueError(f"cannot read clues from {path}: {e}")
+    if not isinstance(clues, list) or not clues:
+        raise ValueError(f"{path}: expected a non-empty list of clues")
+    for i, c in enumerate(clues):
+        if (not isinstance(c, dict) or set(c) != {"category", "value", "clue", "answer"}
+                or not all(isinstance(c[k], str) and c[k] for k in ("category", "clue", "answer"))
+                or isinstance(c["value"], bool) or not isinstance(c["value"], int)):
+            raise ValueError(f"{path}: clue {i} needs exactly category, value (int), clue, answer")
+    return clues
+
+
+OPENTDB_VALUES = {"easy": 200, "medium": 600, "hard": 1000}
+
+
+def opentdb_to_clues(results, rng=None):
+    """Convert Open Trivia DB multiple-choice results (URL-encoded) into clues. The options are listed in
+    the clue as A) to D) and the answer is the matching letter and text. Value follows the difficulty."""
+    rng = rng or random.Random()
+    unq = urllib.parse.unquote
+    clues = []
+    for r in results:
+        options = [unq(o) for o in r["incorrect_answers"]] + [unq(r["correct_answer"])]
+        rng.shuffle(options)
+        letters = "ABCDEFGH"[:len(options)]
+        correct = letters[options.index(unq(r["correct_answer"]))]
+        category = unq(r["category"]).split(":")[-1].strip()
+        clues.append({
+            "category": category,
+            "value": OPENTDB_VALUES.get(r["difficulty"], 600),
+            "clue": f"{unq(r['question'])} " + " ".join(f"{l}) {o}" for l, o in zip(letters, options)),
+            "answer": f"{correct}) {unq(r['correct_answer'])}",
+        })
+    return clues
+
+
+def fetch_opentdb(amount=20, difficulty=None, timeout=10, rng=None):
+    """A batch of clues from Open Trivia DB (free, no key; it allows one request per 5 seconds)."""
+    params = {"amount": amount, "type": "multiple", "encode": "url3986"}
+    if difficulty:
+        params["difficulty"] = difficulty
+    with urllib.request.urlopen(f"https://opentdb.com/api.php?{urllib.parse.urlencode(params)}", timeout=timeout) as r:
+        body = json.load(r)
+    if body.get("response_code") != 0:
+        raise ValueError(f"Open Trivia DB returned response_code {body.get('response_code')}")
+    return opentdb_to_clues(body["results"], rng)
+
+
+def scroll_position(elapsed, duration, hold=1.5):
+    """0 to 1 over `duration` seconds: rests at 0 for `hold` seconds, moves, then rests at 1 for `hold`."""
+    hold = min(hold, duration / 4)
+    return min(max((elapsed - hold) / (duration - 2 * hold), 0), 1)
+
+
+def trivia_frame(clue, elapsed, question_seconds, reveal_seconds, count_label=""):
+    """What the screen shows `elapsed` seconds into a clue: the clue with a draining timer bar, then the
+    answer with a second, shorter bar. `scroll` (0 to 1) moves through text too long for the box, once per phase.
+    `count_label` is the position in the round ("2/5"). Text is upper-cased in the Jeopardy style (answers keep
+    their case)."""
+    head = {"category": clue["category"].upper(), "value_label": f"${clue['value']}", "count_label": count_label}
+    if elapsed < question_seconds:
+        return {**head, "phase": "question", "body": clue["clue"].upper(), "body_color": "white",
+                "bar_color": "yellow", "progress": 1 - elapsed / question_seconds,
+                "scroll": scroll_position(elapsed, question_seconds)}
+    t = elapsed - question_seconds
+    return {**head, "phase": "reveal", "body": clue["answer"], "body_color": "green",
+            "bar_color": "green", "progress": max(1 - t / reveal_seconds, 0),
+            "scroll": scroll_position(t, reveal_seconds)}
+
+
+class TriviaSource(Source):
+    """Plays rounds of `questions` clues, each shown for `question_seconds` and then its answer for
+    `reveal_seconds`, for one round only; it then holds the last answer. Republishes `tick` seconds apart so the timer bar moves; the
+    screen needs no clock of its own.
+
+    Rounds come from the clue bank in shuffled order, with no repeats until every clue has been shown. With
+    `fetch_batch` (a callable taking a count and returning a list of clues), each round is fetched from it
+    instead, falling back to the bank when it fails or returns nothing."""
+
+    def __init__(self, clues, question_seconds, reveal_seconds, mount, questions=5, tick=0.1, rng=None,
+                 clock=time.monotonic, fetch_batch=None):
+        super().__init__(mount)
+        self.fetch_batch = fetch_batch
+        self.clues = clues
+        self.questions = questions
+        self.question_seconds = question_seconds
+        self.reveal_seconds = reveal_seconds
+        self.tick = tick
+        self.rng = rng or random.Random()
+        self.clock = clock
+        self._queue = []        # shuffled bank clues not yet played
+
+    def order(self, previous=None):
+        """A fresh shuffle that doesn't open with the clue that just closed the last one."""
+        clues = list(self.clues)
+        self.rng.shuffle(clues)
+        if len(clues) > 1 and clues[0] is previous:
+            clues.append(clues.pop(0))
+        return clues
+
+    def next_round(self, previous=None):
+        """The clues for one round: `questions` of them (fewer if the bank is smaller)."""
+        if self.fetch_batch:
+            try:
+                batch = self.fetch_batch(self.questions)
+                if batch:
+                    return list(batch)[:self.questions]
+            except Exception as e:      # offline, rate limited, bad response: play the local bank
+                log.warning("%s fetch failed, using the local clues: %s", self.mount, e)
+        n = min(self.questions, len(self.clues))
+        if len(self._queue) < n:        # top up with a new shuffle, leaving out clues still waiting
+            self._queue += [c for c in self.order(previous) if all(c is not q for q in self._queue)]
+        clues, self._queue = self._queue[:n], self._queue[n:]
+        return clues
+
+    def _run(self):
+        total = self.question_seconds + self.reveal_seconds
+        clues = self.next_round()
+        for i, clue in enumerate(clues, 1):
+            start = self.clock()
+            while not self._stop.is_set() and self.clock() - start < total:
+                self.publish(trivia_frame(clue, self.clock() - start, self.question_seconds,
+                                          self.reveal_seconds, f"{i}/{len(clues)}"))
+                self._stop.wait(self.tick)
+        if clues and not self._stop.is_set():       # one round only: hold the last answer, no refetch
+            self.publish(trivia_frame(clues[-1], total, self.question_seconds, self.reveal_seconds,
+                                      f"{len(clues)}/{len(clues)}"))
+
+
 def v_units(v):
     if v not in ("fahrenheit", "celsius"):
         raise ValueError(f"expected 'fahrenheit' or 'celsius', got {v!r}")
@@ -191,3 +330,17 @@ def _market_quote(mount, symbol, label, range, interval):
              max_arrivals=(v_nonneg, 3), interval=(v_interval, 30))
 def _mta_arrivals(mount, stations, walk_minutes, max_arrivals, interval):
     return PollingSource(lambda: fetch_arrivals(stations, walk_minutes, int(max_arrivals)), interval, mount)
+
+
+def v_questions(v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 50:
+        raise ValueError(f"expected a whole number from 1 to 50, got {v!r}")
+    return v
+
+
+@source_type("trivia", path=(v_str, REQUIRED), question_seconds=(v_interval, 15), reveal_seconds=(v_interval, 5),
+             provider=(v_oneof("local", "opentdb"), "local"), difficulty=(v_oneof("easy", "medium", "hard"), None),
+             questions=(v_questions, 5))
+def _trivia(mount, path, question_seconds, reveal_seconds, provider, difficulty, questions):
+    fetch = (lambda n: fetch_opentdb(n, difficulty)) if provider == "opentdb" else None
+    return TriviaSource(load_clues(path), question_seconds, reveal_seconds, mount, questions, fetch_batch=fetch)
