@@ -4,6 +4,8 @@ A widget declares its props as {name: (validator, default)}. Validators return t
 (normalised) value or raise ValueError. Add a widget by subclassing Widget and
 decorating it with @register("Name").
 """
+from datetime import datetime
+
 from .icons import ICONS, UNKNOWN, draw_icon, get_icon_for_code
 from .layout import Rect, inset, split
 
@@ -89,6 +91,16 @@ def v_number_list(v):
     if not isinstance(v, list) or not all(isinstance(i, (int, float)) and not isinstance(i, bool) for i in v):
         raise ValueError(f"expected list of numbers, got {v!r}")
     return v
+
+
+def v_datetime(v):
+    """ISO 8601 date-time string ('2026-12-26T11:00:00'); naive means the machine's local time."""
+    if not isinstance(v, str):
+        raise ValueError(f"expected an ISO date-time string, got {v!r}")
+    try:
+        return datetime.fromisoformat(v)
+    except ValueError:
+        raise ValueError(f"expected an ISO date-time like '2026-12-26T11:00:00', got {v!r}") from None
 
 
 def v_padding(v):
@@ -436,3 +448,96 @@ class WrapText(Widget):
         for i, line in enumerate(lines[first:first + visible]):
             draw_aligned_text(ctx, Rect(rect.x, rect.y + i * pitch, rect.w, font.height),
                               line, p["color"], p["font"], p["align"])
+
+
+def time_left(target, now):
+    """Whole (days, hours, minutes, seconds) from `now` until `target`, all zero once it has passed."""
+    if target.tzinfo is not None:
+        now = now.astimezone()
+    remaining = max(int((target - now).total_seconds()), 0)
+    days, rest = divmod(remaining, 86400)
+    hours, rest = divmod(rest, 3600)
+    return days, hours, *divmod(rest, 60)
+
+
+@register("Countdown")
+class Countdown(Widget):
+    """Time left until `target`, formatted with `{d}` days, `{h}` hours, `{m}` minutes and `{s}` seconds
+    (each takes a format spec, e.g. `{h:02}`). Reads the clock like `Clock`, so it needs no data source.
+    Shows zeros once `target` has passed."""
+    props = {
+        "target": (v_datetime, None),
+        "format": (v_text, "{d}d {h:02}:{m:02}:{s:02}"),
+        "color": (v_color, COLORS["white"]),
+        "font": (v_oneof(*FONT_NAMES), "small"),
+        "align": (v_oneof("left", "center", "right"), "left"),
+    }
+    required = ("target",)
+
+    def render(self, ctx, rect, p, node):
+        d, h, m, s = time_left(p["target"], ctx.now())
+        try:
+            text = p["format"].format(d=d, h=h, m=m, s=s)
+        except (KeyError, IndexError, ValueError) as e:
+            from .resolver import ConfigError      # deferred: resolver imports this module
+            raise ConfigError(f"{node.id}: prop 'format': {e!r}") from None
+        draw_aligned_text(ctx, rect, text, p["color"], p["font"], p["align"])
+
+
+@register("SpeechBubble")
+class SpeechBubble(Widget):
+    """Filled, outlined box with rounded corners and a two-pixel tail pointing down-left, like the old
+    Bondi page. The tail sits just below the box, so leave two rows free under it."""
+    props = {"fill": (v_color, (10, 10, 10)), "border": (v_color, (200, 200, 200)), "tail": (v_oneof(True, False), True)}
+
+    def render(self, ctx, rect, p, node):
+        if rect.w < 3 or rect.h < 3:
+            return
+        for y in range(rect.y, rect.y + rect.h):
+            for x in range(rect.x, rect.x + rect.w):
+                edge_x = x in (rect.x, rect.x + rect.w - 1)
+                edge_y = y in (rect.y, rect.y + rect.h - 1)
+                if edge_x and edge_y:
+                    continue                    # rounded corner
+                ctx.canvas.SetPixel(x, y, *(p["border"] if edge_x or edge_y else p["fill"]))
+        if p["tail"]:
+            ctx.canvas.SetPixel(rect.x + 4, rect.y + rect.h, *p["border"])
+            ctx.canvas.SetPixel(rect.x + 3, rect.y + rect.h + 1, *p["border"])
+
+
+_IMAGE_CACHE = {}
+
+
+def load_image_pixels(path, width, height):
+    """RGB rows of the image at `path` scaled to fit width x height, or None if it can't be read.
+    Cached, since a screen redraws every frame."""
+    key = (path, width, height)
+    if key not in _IMAGE_CACHE:
+        try:
+            from PIL import Image as PILImage
+            img = PILImage.open(path)
+            img.thumbnail((width, height), PILImage.LANCZOS)
+            img = img.convert("RGB")
+            _IMAGE_CACHE[key] = [[img.getpixel((x, y)) for x in range(img.width)] for y in range(img.height)]
+        except Exception as e:      # missing file, not an image, PIL not installed
+            print(f"matrix_ui: could not load image {path!r}: {e}")
+            _IMAGE_CACHE[key] = None
+    return _IMAGE_CACHE[key]
+
+
+@register("Image")
+class Image(Widget):
+    """A picture (PNG, JPEG, ...) scaled down to fit its box, keeping its aspect ratio, centred. `path` is
+    relative to where you run from. A missing or unreadable file draws nothing and is reported once."""
+    props = {"path": (v_text, None)}
+    required = ("path",)
+
+    def render(self, ctx, rect, p, node):
+        pixels = load_image_pixels(p["path"], rect.w, rect.h)
+        if not pixels:
+            return
+        x0 = rect.x + (rect.w - len(pixels[0])) // 2
+        y0 = rect.y + (rect.h - len(pixels)) // 2
+        for y, row in enumerate(pixels):
+            for x, (r, g, b) in enumerate(row):
+                ctx.canvas.SetPixel(x0 + x, y0 + y, r, g, b)

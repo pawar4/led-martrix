@@ -33,4 +33,8 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 | `ProgressBar` | `value` (0 to 1, clamped), `color` (green), `track` | Bar filled left to right; `track` is the colour of the unfilled part (transparent if unset) |
 | `WrapText` | `text`, `color` (white), `font` (small), `align` (left), `line_gap` (1), `scroll` (0) | Word-wrapped to its box, one line per font height + `line_gap`. Text taller than the box shows a window of whole lines: `scroll` (0 to 1) picks it, 0 the first lines and 1 the last. Bind `scroll` to a value that changes over time to animate it. A word wider than the box is split |
 
+| `Countdown` | `target` (required), `format` (`{d}d {h:02}:{m:02}:{s:02}`), `color`, `font`, `align` | Time left until `target`, an ISO date-time (`2026-12-26T11:00:00`; no offset means the machine's local time). `format` uses `{d}` days, `{h}` hours, `{m}` minutes, `{s}` seconds (hours, minutes and seconds are the remainder, so `{h}` is 0 to 23), each with an optional spec like `{h:02}`. Reads the clock like `Clock`; zeros once `target` has passed. Trimmed to its box |
+| `SpeechBubble` | `fill` (near black), `border` (light grey), `tail` (true) | Filled box with an outline, rounded corners and a two-pixel tail pointing down-left, just below the box. Put text on top of it in a `Stack` |
+| `Image` | `path` (required) | A picture scaled down to fit its box (aspect ratio kept, centred), read once and cached. `path` is relative to where you run from. A missing or unreadable file draws nothing and is reported once |
+
 `TrainRow` expects roughly 22px of height: the name sits on the row's midline and arrivals 10px below.

@@ -1,0 +1,13 @@
+{
+  "root": "root",
+  "components": [
+    {"id": "root", "component": "Stack", "children": ["bg", "photo", "bubble", "days_hours", "mins_secs"]},
+    {"id": "bg", "component": "Fill", "color": "black"},
+    {"id": "photo", "component": "Image", "path": "assets/tanner.png"},
+    {"id": "bubble", "component": "SpeechBubble", "x": 25, "y": 1, "width": 38, "height": 17},
+    {"id": "days_hours", "component": "Countdown", "target": "2026-12-26T11:00:00", "format": "{d}d {h:02}h",
+     "font": "tiny", "align": "center", "x": 27, "y": 3, "width": 34, "height": 6},
+    {"id": "mins_secs", "component": "Countdown", "target": "2026-12-26T11:00:00", "format": "{m:02}m {s:02}s",
+     "font": "tiny", "align": "center", "color": "yellow", "x": 27, "y": 10, "width": 34, "height": 6}
+  ]
+}

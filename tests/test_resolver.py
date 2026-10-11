@@ -281,3 +281,57 @@ def test_trivia_screen_renders_sample_data():
     texts = [t[3] for t in gfx.texts if t[3]]
     assert texts[:3] == ["GEOGRAPHY", "$600", "3/5"]
     assert "".join(texts[3:]).replace(" ", "") == "THESMALLESTCOUNTRYINTHEWORLD"
+
+
+# ---- countdown, speech bubble, image ----
+
+def countdown(target, **props):
+    return screen({"id": "c", "component": "Countdown", "target": target, **props}, root="c")
+
+
+def test_countdown_splits_days_hours_minutes_seconds():
+    # NOW is 2026-01-01 09:05:00; 3 days, 2 hours, 4 minutes, 5 seconds later
+    _, gfx = render(countdown("2026-01-04T11:09:05", format="{d}d {h:02}:{m:02}:{s:02}"))
+    assert gfx.texts[0][3] == "3d 02:04:05"
+
+
+def test_countdown_clamps_to_zero_after_target():
+    _, gfx = render(countdown("2025-12-31T00:00:00"))
+    assert gfx.texts[0][3] == "0d 00:00:00"
+
+
+def test_countdown_target_can_be_bound():
+    _, gfx = render(screen({"id": "c", "component": "Countdown", "target": {"path": "/t"}}, root="c"),
+                    {"t": "2026-01-01T09:06:00"})
+    assert gfx.texts[0][3] == "0d 00:01:00"
+
+
+def test_countdown_rejects_a_bad_target_and_a_bad_format():
+    with pytest.raises(ConfigError, match="c: prop 'target'"):
+        Surface.load(countdown("next tuesday"))
+    with pytest.raises(ConfigError, match="c: prop 'format'"):
+        render(countdown("2026-01-02T00:00:00", format="{weeks}"))
+
+
+def test_speech_bubble_has_rounded_corners_fill_and_tail():
+    canvas, _ = render(screen({"id": "s", "component": "Stack", "children": ["b"]},
+                              {"id": "b", "component": "SpeechBubble", "width": 10, "height": 6,
+                               "fill": [1, 1, 1], "border": [9, 9, 9]}, root="s"))
+    assert (0, 0) not in canvas.pixels and (9, 5) not in canvas.pixels
+    assert canvas.pixels[(1, 0)] == (9, 9, 9) and canvas.pixels[(0, 1)] == (9, 9, 9)
+    assert canvas.pixels[(5, 3)] == (1, 1, 1)
+    assert canvas.pixels[(4, 6)] == (9, 9, 9) and canvas.pixels[(3, 7)] == (9, 9, 9)
+
+
+def test_image_scales_to_fit_and_centres(tmp_path):
+    from PIL import Image as PILImage
+    path = tmp_path / "wide.png"
+    PILImage.new("RGB", (128, 64), (255, 0, 0)).save(path)
+    canvas, _ = render(screen({"id": "i", "component": "Image", "path": str(path)}, root="i"))
+    assert canvas.pixels[(0, 16)] == (255, 0, 0) and canvas.pixels[(63, 47)] == (255, 0, 0)
+    assert (0, 15) not in canvas.pixels and (0, 48) not in canvas.pixels
+
+
+def test_image_missing_file_draws_nothing():
+    canvas, _ = render(screen({"id": "i", "component": "Image", "path": "no/such/file.png"}, root="i"))
+    assert canvas.pixels == {}
