@@ -14,6 +14,7 @@ pip install -r requirements.txt
 pytest tests/
 python preview.py screens/subway.json              # emulator in the browser, http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
+python preview.py screens/weather.json             # 3-hour forecast for one day (set "day" in its source)
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 

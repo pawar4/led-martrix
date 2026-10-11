@@ -1,0 +1,37 @@
+{
+  "forecast": {
+    "date_label": "Sat Oct 17",
+    "slots": [
+      {
+        "hour": "6am",
+        "code": 1,
+        "temp_label": "56F"
+      },
+      {
+        "hour": "9am",
+        "code": 0,
+        "temp_label": "62F"
+      },
+      {
+        "hour": "12pm",
+        "code": 2,
+        "temp_label": "68F"
+      },
+      {
+        "hour": "3pm",
+        "code": 61,
+        "temp_label": "70F"
+      },
+      {
+        "hour": "6pm",
+        "code": 3,
+        "temp_label": "64F"
+      },
+      {
+        "hour": "9pm",
+        "code": 0,
+        "temp_label": "60F"
+      }
+    ]
+  }
+}

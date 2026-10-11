@@ -182,3 +182,12 @@ def test_long_text_is_truncated_to_its_rect():
     cfg = screen({"id": "r", "component": "Row", "children": ["t"]},
                  {"id": "t", "component": "Text", "width": 20, "text": "abcdefgh"}, root="r")
     assert render(cfg)[1].texts[0][3] == "abcd"
+
+
+def test_weather_sample_screen_renders():
+    data = json.load(open(os.path.join(ROOT, "screens/weather.sample_data.json")))
+    _, gfx = render(os.path.join(ROOT, "screens/weather.json"), data)
+    texts = [t[3] for t in gfx.texts]
+    assert texts[0] == "Sat Oct 17"
+    assert texts[1:5] == ["6am", "56F", "9am", "62F"]
+    assert len(texts) == 1 + 6 * 2

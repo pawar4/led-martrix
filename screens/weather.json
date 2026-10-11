@@ -1,0 +1,161 @@
+{
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "component": "Column",
+      "children": [
+        "date",
+        "r0",
+        "r1",
+        "r2"
+      ]
+    },
+    {
+      "id": "date",
+      "component": "Text",
+      "height": 8,
+      "align": "center",
+      "color": "green",
+      "text": {
+        "path": "/forecast/date_label"
+      }
+    },
+    {
+      "id": "r0",
+      "component": "Row",
+      "height": 18,
+      "children": [
+        "s0",
+        "s1"
+      ]
+    },
+    {
+      "id": "s0",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/0/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/0/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/0/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    },
+    {
+      "id": "s1",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/1/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/1/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/1/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    },
+    {
+      "id": "r1",
+      "component": "Row",
+      "height": 18,
+      "children": [
+        "s2",
+        "s3"
+      ]
+    },
+    {
+      "id": "s2",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/2/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/2/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/2/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    },
+    {
+      "id": "s3",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/3/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/3/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/3/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    },
+    {
+      "id": "r2",
+      "component": "Row",
+      "height": 18,
+      "children": [
+        "s4",
+        "s5"
+      ]
+    },
+    {
+      "id": "s4",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/4/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/4/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/4/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    },
+    {
+      "id": "s5",
+      "component": "ForecastSlot",
+      "width": 32,
+      "hour": {
+        "path": "/forecast/slots/5/hour"
+      },
+      "weather_code": {
+        "path": "/forecast/slots/5/code"
+      },
+      "temp": {
+        "path": "/forecast/slots/5/temp_label"
+      },
+      "hour_color": "cyan",
+      "temp_color": "yellow"
+    }
+  ],
+  "sources": [
+    {
+      "type": "weather_forecast",
+      "mount": "/forecast",
+      "day": "today",
+      "step_hours": 3,
+      "start_hour": 6,
+      "end_hour": 22,
+      "interval": 1800,
+      "lat": 40.7128,
+      "lon": -74.006
+    }
+  ]
+}

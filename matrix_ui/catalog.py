@@ -19,6 +19,13 @@ COLORS = {
     "red": (220, 0, 0),
     "dim": (100, 100, 100),
     "cyan": (0, 200, 200),
+    "orange": (255, 120, 0),
+    "blue": (40, 100, 255),
+    "purple": (160, 60, 255),
+    "magenta": (255, 0, 160),
+    "pink": (255, 130, 180),
+    "lime": (140, 255, 0),
+    "teal": (0, 160, 130),
     "black": (0, 0, 0),
 }
 
@@ -283,3 +290,19 @@ class TrainRow(Widget):
         else:
             color, line = COLORS["white"], "No data"
         draw_text(ctx, rect.x + 18, mid + 10, line, color, "small")
+
+
+@register("ForecastSlot")
+class ForecastSlot(Widget):
+    """One forecast step: weather icon, hour label (tiny) and temperature. Fits a 32x14 box or taller."""
+    props = {"hour": (v_text, ""), "weather_code": (v_int, None), "temp": (v_text, ""),
+             "hour_color": (v_color, COLORS["dim"]), "temp_color": (v_color, COLORS["white"])}
+
+    def render(self, ctx, rect, p, node):
+        icon = get_icon_for_code(p["weather_code"]) if p["weather_code"] is not None else UNKNOWN
+        draw_icon(ctx.canvas, icon, rect.x, rect.y + (rect.h - 10) // 2)
+        top = rect.y + max((rect.h - 14) // 2, 0)        # hour (6px) + temperature (8px), centred
+        text_rect = Rect(rect.x + 12, top, max(rect.w - 12, 0), 14)
+        draw_aligned_text(ctx, text_rect, p["hour"], p["hour_color"], "tiny", "left")
+        draw_aligned_text(ctx, Rect(text_rect.x, top + 6, text_rect.w, 8),
+                          p["temp"], p["temp_color"], "small", "left")

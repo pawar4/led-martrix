@@ -84,6 +84,10 @@ def test_screen_without_sources_loads():
     ({"type": "weather", "mount": "w", "lat": 1, "lon": 2}, "starting with '/'"),
     ({"type": "weather", "mount": "/w", "lat": 1, "lon": 2, "bogus": 1}, "unknown keys"),
     ({"type": "http_json", "mount": "/x", "url": "http://h", "interval": 0}, "positive"),
+    ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "day": "friday"}, "YYYY-MM-DD"),
+    ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "step_hours": 5}, "divisor of 24"),
+    ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "start_hour": 24}, "0 to 23"),
+    ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "start_hour": 20, "end_hour": 6}, "before start_hour"),
     ({"type": "mta_arrivals", "mount": "/t", "stations": {"E": {"stop_id": "F09"}}}, "exactly"),
 ])
 def test_bad_source_specs_are_rejected(spec, message):
@@ -117,3 +121,30 @@ def test_surface_starts_and_stops_sources(tmp_path):
         assert wait_for(lambda: dm.get("/d/a") == 5)
     finally:
         surface.stop_sources()
+
+
+def test_resolve_day_and_hour_label():
+    from datetime import date
+    from matrix_ui.providers import hour_label, resolve_day
+    today = date(2026, 10, 11)
+    assert resolve_day("today", today) == today
+    assert resolve_day("tomorrow", today) == date(2026, 10, 12)
+    assert resolve_day("2026-10-20", today) == date(2026, 10, 20)
+    assert [hour_label(h) for h in (0, 3, 12, 15, 21)] == ["12am", "3am", "12pm", "3pm", "9pm"]
+
+
+def test_fetch_forecast_samples_every_step(monkeypatch):
+    import io
+    import json as _json
+    from matrix_ui import providers
+    hourly = {"temperature_2m": [h + 0.4 for h in range(24)], "weather_code": list(range(24))}
+    monkeypatch.setattr(providers.urllib.request, "urlopen",
+                        lambda url, timeout: io.StringIO(_json.dumps({"hourly": hourly})))
+    out = providers.fetch_forecast(1, 2, "2026-10-17", step_hours=6, start_hour=0, end_hour=23)
+    assert out["date_label"] == "Sat Oct 17"
+    assert out["slots"] == [{"hour": "12am", "code": 0, "temp_label": "0F"},
+                            {"hour": "6am", "code": 6, "temp_label": "6F"},
+                            {"hour": "12pm", "code": 12, "temp_label": "12F"},
+                            {"hour": "6pm", "code": 18, "temp_label": "18F"}]
+    default = providers.fetch_forecast(1, 2, "2026-10-17")      # 6am to 10pm every 3 hours
+    assert [s["hour"] for s in default["slots"]] == ["6am", "9am", "12pm", "3pm", "6pm", "9pm"]
