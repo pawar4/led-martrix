@@ -2,3 +2,4 @@
 RGBMatrixEmulator
 Pillow
 pytest
+nyct-gtfs

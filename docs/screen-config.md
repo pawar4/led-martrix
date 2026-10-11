@@ -18,6 +18,30 @@ A screen is a JSON object:
   [catalogue](widgets.md). Containers list `children` by ID. Every component must be reachable from
   `root`, and each can have only one parent (no cycles).
 
+## Data sources
+
+A screen can declare where its data comes from with an optional top-level `sources` list. Each source
+writes into the data model under its own `mount` path, and the component bindings read from there.
+
+```json
+"sources": [
+  {"type": "weather", "mount": "/weather", "lat": 40.71, "lon": -74.0, "interval": 600},
+  {"type": "http_json", "mount": "/api", "url": "https://example.com/x?key=${MY_KEY}", "interval": 60}
+]
+```
+
+| type | params (`*` required) | publishes |
+|---|---|---|
+| `file` | `path*`, `interval` (0.5) | the JSON file's contents; reloaded when it changes |
+| `http_json` | `url*`, `headers`, `interval` (30) | the response body |
+| `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
+| `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, arrivals}}` (nyct-gtfs) |
+
+`mta_arrivals` stations look like `{"E": {"stop_id": "F09", "direction": "S", "name": "Court Sq"}}`.
+`${NAME}` in `http_json` URLs and headers is replaced from the environment, so keys stay out of the file.
+`interval` is in seconds. Mounts must not overlap. A failed fetch keeps the last good data on screen.
+Sources only run with `preview.py --live`; otherwise the screen uses its `.sample_data.json`.
+
 ## Props
 
 Each prop is either:
@@ -52,4 +76,6 @@ mode the widget is skipped and the problem is printed once.
 ## Sample data
 
 `screens/<name>.sample_data.json` holds the data model for previews. `preview.py` loads it automatically,
-or pass `--data other.json` to try edge cases.
+or pass `--data other.json` to try edge cases. In the live preview the file is a `file` source, so edits
+show up on screen without a restart. `--png` loads it once. `--live` ignores it and runs the screen's
+[`sources`](#data-sources) instead.

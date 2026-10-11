@@ -70,8 +70,9 @@ class RenderContext:
 
 
 class Surface:
-    def __init__(self, root):
+    def __init__(self, root, sources=()):
         self.root = root
+        self.sources = list(sources)    # built from the config's "sources"; not running until start_sources
         self._reported = set()      # errors already printed, so a bad widget logs once, not every frame
 
     @classmethod
@@ -80,7 +81,16 @@ class Surface:
         if not isinstance(source, dict):
             with open(source) as f:
                 source = json.load(f)
-        return cls(_build(source))
+        from .sources import build_sources      # deferred: sources imports ConfigError from here
+        return cls(_build(source), build_sources(source.get("sources", [])))
+
+    def start_sources(self, dm):
+        for src in self.sources:
+            src.start(dm)
+
+    def stop_sources(self):
+        for src in self.sources:
+            src.stop()
 
     def render(self, canvas, dm, fonts, graphics, now=None, strict=False):
         ctx = RenderContext(canvas, graphics, fonts, dm, now or datetime.now, strict, self._reported)

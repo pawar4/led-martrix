@@ -4,6 +4,8 @@
 screen.json ──> Surface.load ──> Node tree ──┐
                                              ├─> Surface.render ──> canvas
 DataModel (/a/b paths) ──────────────────────┘
+      ▲
+Sources (threads, from the config's "sources") ┘
 ```
 
 ## Modules (`matrix_ui/`)
@@ -14,6 +16,9 @@ DataModel (/a/b paths) ───────────────────
 - `catalog.py`: the widget registry and validators.
 - `layout.py`: `Rect`, `inset`, `split` (fixed sizes plus flex remainder, gap, padding).
 - `datamodel.py`: thread-safe `get(path, default)` / `set(path, value)`.
+- `sources.py`: `Source` base class, `StaticFileSource`, `PollingSource`, the `source_type` registry and
+  `build_sources` (validates the config's `sources`). Generic types: `file`, `http_json`.
+- `providers.py`: service-specific source types (`weather`, `mta_arrivals`).
 - `backend.py`: uses `rgbmatrix` if installed, else `RGBMatrixEmulator`. Also `make_matrix()` and
   `load_fonts()` (searches `$MATRIX_FONTS_DIR`, repo `fonts/`, then the Pi's font path).
 - `icons.py`: pixel-art icons copied from `new_subway.py`.
@@ -34,10 +39,19 @@ Props are `{name: (validator, default)}`. A validator returns the normalised val
 `ValueError`. Set `container = True` for widgets with children. Then add a test and list the widget in
 [widgets.md](widgets.md).
 
-## Feeding live data
+## Adding a data source
 
-Nothing fetches data yet. A fetcher thread should call `dm.set("/trains/E/arrivals", [...])` on the shared
-`DataModel`, and the render loop reads from it each frame.
+Sources live in `matrix_ui/sources.py` (generic) and `matrix_ui/providers.py` (service-specific). Register
+a type with its params and a factory returning a `Source`; the screen config can then use it:
+
+```python
+@source_type("stocks", symbol=(v_str, REQUIRED), interval=(v_interval, 60))
+def _stocks(mount, symbol, interval):
+    return PollingSource(lambda: fetch_quote(symbol), interval, mount)
+```
+
+A source owns one subtree and replaces it with a single `dm.set(mount, value)`, so a render never sees a
+half-updated value. Push-style sources (MQTT, WebSocket) subclass `Source` and implement `_run`.
 
 ## Testing
 

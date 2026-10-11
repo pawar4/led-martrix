@@ -14,6 +14,7 @@ pip install -r requirements.txt
 pytest tests/
 python preview.py screens/subway.json              # emulator in the browser, http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
+python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 
 On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them in preference to the emulator.
@@ -22,9 +23,9 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 | Path | What |
 |---|---|
-| `matrix_ui/` | The resolver package (config loading, widgets, layout, data model, icons, backend) |
+| `matrix_ui/` | The resolver package (config loading, widgets, layout, data model, data sources, icons, backend) |
 | `screens/` | Screen configs, each with a `<name>.sample_data.json` for previews |
-| `preview.py` | Render a screen with sample data |
+| `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |
 | `docs/` | Documentation |
 | `fonts/` | BDF fonts (4x6, 5x8, 6x10) |
@@ -37,5 +38,5 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 ## Not done yet
 
-Live data fetchers feeding the data model, porting the markets/riddle/Bondi screens, screen scheduling,
+Live sources for the markets and riddle screens, porting the markets/riddle/Bondi screens, screen scheduling,
 and AI authoring of screens.

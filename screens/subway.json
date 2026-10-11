@@ -71,5 +71,33 @@
         "path": "/trains/7/arrivals"
       }
     }
+  ],
+  "sources": [
+    {
+      "type": "mta_arrivals",
+      "mount": "/trains",
+      "interval": 30,
+      "walk_minutes": 10,
+      "max_arrivals": 3,
+      "stations": {
+        "E": {
+          "stop_id": "F09",
+          "direction": "S",
+          "name": "Court Sq"
+        },
+        "7": {
+          "stop_id": "721",
+          "direction": "S",
+          "name": "Vern-Jack"
+        }
+      }
+    },
+    {
+      "type": "weather",
+      "mount": "/weather",
+      "interval": 600,
+      "lat": 40.7128,
+      "lon": -74.006
+    }
   ]
 }
