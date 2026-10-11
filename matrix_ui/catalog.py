@@ -140,7 +140,8 @@ def draw_badge(ctx, rect, route, color, radius):
     cx, cy = rect.x + rect.w // 2, rect.y + rect.h // 2
     draw_disc(ctx.canvas, cx, cy, radius, color)
     font = ctx.fonts["large"]
-    draw_text(ctx, cx - text_width(font, route) // 2, cy - font.height // 2 + font.baseline,
+    # 6x10 glyphs are ~5px wide in a 6px cell and 7px tall (rows baseline-7..baseline-1)
+    draw_text(ctx, cx - (text_width(font, route) - 1) // 2, cy + 4,
               route, COLORS["white"], "large")
 
 
