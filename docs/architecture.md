@@ -60,6 +60,12 @@ def _stocks(mount, symbol, interval):
     return PollingSource(lambda: fetch_quote(symbol), interval, mount)
 ```
 
+Polling sources are memoized: `build_source` gives each a key (type + params, ignoring `mount` and `interval`),
+and `FETCH_CACHE` holds the last value per key. A source started within its `interval` of the last fetch
+publishes the cached value at once and only fetches when it is stale; stale data is still shown while the
+refetch runs. So rotating screens doesn't refetch, and two sources with the same params share data. Failed
+fetches aren't cached. `trivia` and `file` sources aren't memoized.
+
 A source owns one subtree and replaces it with a single `dm.set(mount, value)`, so a render never sees a
 half-updated value. Push-style sources (MQTT, WebSocket) subclass `Source` and implement `_run`.
 

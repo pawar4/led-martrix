@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 
 from matrix_ui import DataModel, PollingSource, StaticFileSource
@@ -346,3 +347,55 @@ def test_trivia_source_counts_through_the_round():
         assert wait_for(lambda: seen.append(dm.get("/trivia/count_label")) or {"1/2", "2/2"} <= set(seen))
     finally:
         src.stop()
+
+
+# ---- memoized fetches ----
+
+from matrix_ui.sources import FetchCache
+
+
+def test_restarted_source_reuses_fresh_data_and_refetches_when_stale():
+    cache, calls = FetchCache(), []
+
+    def fetch():
+        calls.append(1)
+        return {"n": len(calls)}
+
+    def run(interval):
+        dm = DataModel()
+        src = PollingSource(fetch, interval=interval, mount="/x", key="k", cache=cache).start(dm)
+        assert wait_for(lambda: dm.get("/x/n") is not None)
+        src.stop()
+        return dm.get("/x/n")
+
+    assert run(60) == 1
+    assert run(60) == 1 and len(calls) == 1      # fresh: served from the cache, no fetch
+    time.sleep(0.05)
+    assert run(0.01) == 2 and len(calls) == 2    # stale for this interval: fetched again
+
+
+def test_stale_value_is_shown_while_refetching():
+    cache = FetchCache()
+    cache.put("k", {"n": "old"})
+    time.sleep(0.02)
+    gate = threading.Event()
+
+    def fetch():
+        gate.wait(2)
+        return {"n": "new"}
+
+    dm = DataModel()
+    src = PollingSource(fetch, interval=0.01, mount="/x", key="k", cache=cache).start(dm)
+    try:
+        assert wait_for(lambda: dm.get("/x/n") == "old")
+        gate.set()
+        assert wait_for(lambda: dm.get("/x/n") == "new")
+    finally:
+        src.stop()
+
+
+def test_sources_with_same_type_and_params_share_a_key():
+    a = build_source({"type": "weather", "mount": "/a", "lat": 1, "lon": 2, "interval": 60})
+    b = build_source({"type": "weather", "mount": "/b", "lat": 1, "lon": 2, "interval": 300})
+    c = build_source({"type": "weather", "mount": "/c", "lat": 1, "lon": 3})
+    assert a.key == b.key != c.key

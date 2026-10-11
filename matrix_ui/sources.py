@@ -69,21 +69,65 @@ class StaticFileSource(Source):
             self._stop.wait(self.interval)
 
 
-class PollingSource(Source):
-    """Call `fetch()` every `interval` seconds and publish the result at `mount`."""
+class FetchCache:
+    """Last fetched value per key, shared by every PollingSource, so a restarted source reuses fresh data."""
 
-    def __init__(self, fetch, interval=30, mount=""):
+    def __init__(self):
+        self._entries = {}
+        self._lock = threading.Lock()
+
+    def get(self, key):
+        """(fetched_at, value), or None."""
+        with self._lock:
+            return self._entries.get(key)
+
+    def put(self, key, value):
+        with self._lock:
+            self._entries[key] = (time.time(), value)
+
+    def clear(self):
+        with self._lock:
+            self._entries.clear()
+
+
+FETCH_CACHE = FetchCache()
+
+
+class PollingSource(Source):
+    """Call `fetch()` every `interval` seconds and publish the result at `mount`.
+
+    With a `key`, results are memoized in `cache`: a source (re)started within `interval` of the last fetch
+    for that key publishes the cached value at once and only fetches when it goes stale. Switching screens
+    therefore doesn't refetch. Stale data is still published first, so the screen is never blank.
+    """
+
+    def __init__(self, fetch, interval=30, mount="", key=None, cache=FETCH_CACHE):
         super().__init__(mount)
         self.fetch = fetch
         self.interval = interval
+        self.key = key
+        self.cache = cache
 
     def _run(self):
         while not self._stop.is_set():
-            try:
-                self.publish(self.fetch())
-            except Exception as e:      # keep the last good data on any failure
-                log.warning("%s fetch failed: %s", self.mount or "/", e)
-            self._stop.wait(self.interval)
+            wait = self.interval
+            hit = self.cache.get(self.key) if self.key is not None else None
+            if hit:
+                fetched_at, value = hit
+                if self.last_update is None or self.last_update < fetched_at:
+                    self.publish(value)
+                    self.last_update = fetched_at
+                wait = fetched_at + self.interval - time.time()
+            if not hit or wait <= 0:
+                wait = self.interval
+                try:
+                    value = self.fetch()
+                    if self.key is not None:
+                        self.cache.put(self.key, value)
+                    self.publish(value)
+                except Exception as e:      # keep the last good data on any failure
+                    log.warning("%s fetch failed: %s", self.mount or "/", e)
+            self._stop.wait(wait)
 
 
 def http_json(url, headers=None, timeout=10):
@@ -175,7 +219,11 @@ def build_source(spec):
                 raise ValueError(f"'{name}' is required")
             else:
                 values[name] = default
-        return factory(v_mount(spec["mount"]), **values)
+        source = factory(v_mount(spec["mount"]), **values)
+        if isinstance(source, PollingSource):     # same type + params (any mount, any interval) share cached data
+            key = {k: v for k, v in values.items() if k != "interval"}
+            source.key = (spec["type"], json.dumps(key, sort_keys=True, default=str))
+        return source
     except ValueError as e:      # ConfigError is a ValueError too
         raise ConfigError(f"{where}: {e}") from None
 

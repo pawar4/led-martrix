@@ -30,6 +30,9 @@ writes into the data model under its own `mount` path, and the component binding
 ]
 ```
 
+`interval` is also the staleness limit: fetched data is cached per type and params, and a source that restarts
+(for example when the global model rotates back to its screen) reuses it until it is `interval` seconds old.
+
 | type | params (`*` required) | publishes |
 |---|---|---|
 | `file` | `path*`, `interval` (0.5) | the JSON file's contents; reloaded when it changes |
