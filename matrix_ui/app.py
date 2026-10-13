@@ -25,6 +25,20 @@ log = logging.getLogger(__name__)
 DEFAULT_DWELL = 20
 
 
+def load_surface(screens_dir, name, overrides=None):
+    """Load `<screens_dir>/<name>.json` with source overrides merged in and validate it, without starting sources."""
+    overrides = overrides or {}
+    with open(os.path.join(screens_dir, f"{name}.json")) as f:
+        config = json.load(f)
+    for spec in config.get("sources", []):
+        if isinstance(spec, dict) and spec.get("mount") in overrides:
+            spec.update(overrides[spec["mount"]])
+    unknown = set(overrides) - {s.get("mount") for s in config.get("sources", []) if isinstance(s, dict)}
+    if unknown:
+        raise ConfigError(f"overrides for sources the screen doesn't have: {sorted(unknown)}")
+    return Surface.load(config)
+
+
 class App:
     def __init__(self, model, screens_dir="screens", live=False, clock=time.monotonic):
         self.model = model
@@ -98,16 +112,7 @@ class App:
         self.model.set("/status/error", None)
 
     def _build(self, name, overrides):
-        path = os.path.join(self.screens_dir, f"{name}.json")
-        with open(path) as f:
-            config = json.load(f)
-        for spec in config.get("sources", []):
-            if isinstance(spec, dict) and spec.get("mount") in overrides:
-                spec.update(overrides[spec["mount"]])
-        unknown = set(overrides) - {s.get("mount") for s in config.get("sources", []) if isinstance(s, dict)}
-        if unknown:
-            raise ConfigError(f"overrides for sources the screen doesn't have: {sorted(unknown)}")
-        surface = Surface.load(config)
+        surface = load_surface(self.screens_dir, name, overrides)
         dm, static = DataModel(), None
         if self.live:
             if not surface.sources:

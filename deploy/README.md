@@ -1,5 +1,11 @@
 # Deploy
 
+## Everything on the Pi
+
+`./install.sh` (repo root) sets up the runner, the assistant service and, with `--with-homeassistant`, Home Assistant
+as a systemd user unit running `podman run` (works on podman < 4.4, which has no Quadlet). The Quadlet file below is
+the alternative for podman >= 4.4. Logs: `journalctl -u led-matrix -f`, `journalctl -u led-matrix-assistant -f`.
+
 ## Home Assistant (podman)
 
 - **On the Pi:** `deploy/homeassistant/homeassistant.container` is a rootless

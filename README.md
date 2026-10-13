@@ -18,11 +18,23 @@ python preview.py screens/weather.json             # 3-hour forecast for one day
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")
+ANTHROPIC_API_KEY=... python serve.py              # POST /ask {"query": "show the weather"} edits matrix.json (run alongside run.py)
 python run.py                                      # the global model (matrix.json) picks, rotates and configures screens; add --live for real data
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
 
 On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them in preference to the emulator.
+
+## Install on the Pi
+
+```bash
+git clone <this repo> && cd led-martrix
+./install.sh --with-homeassistant      # --dry-run first to see every step
+```
+
+It installs to `/opt/led-matrix`, builds the `rgbmatrix` bindings into that venv, and enables `led-matrix` (the runner,
+`run.py --live`) and `led-matrix-assistant` (`serve.py`, once `/etc/led-matrix.env` has an API key or `MATRIX_BACKEND=cli`).
+Re-run it to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
 
 ## Layout
 
@@ -31,6 +43,8 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 | `matrix_ui/` | The resolver package (config loading, widgets, layout, data model, data sources, icons, backend) |
 | `screens/` | Screen configs, each with a `<name>.sample_data.json` for previews |
 | `assets/` | Pictures that screens load with `Image` (`tanner.png` is the guest countdown picture) |
+| `serve.py`, `matrix_ui/assistant.py` | HTTP service that turns a plain-English request into a change to `matrix.json` (Claude + validation); for Home Assistant. See `docs/assistant.md` |
+| `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services, optional Home Assistant (`--with-homeassistant`) |
 | `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |

@@ -20,6 +20,9 @@ are unchanged. See [screen-config.md](screen-config.md#global-model) for the key
 
 - `app.py`: `App`, the global-model controller (screen choice, rotation, power, brightness, per-screen source overrides).
 
+- `assistant.py`: `Assistant.ask(query)` asks Claude for a structured patch to the global model, applies it to a copy,
+  validates it with `load_surface` (every screen it names, overrides merged), and writes the model file atomically;
+  `undo()` restores the previous model. `serve.py` wraps it in HTTP. See [assistant.md](assistant.md).
 - `resolver.py`: `Surface.load(path|dict)` validates the config and builds the tree.
   `Surface.render(canvas, dm, fonts, graphics, now=None, strict=False)` resolves bindings and renders
   each node into its rect. `_reported` lives on the `Surface` so errors log once, not every frame.

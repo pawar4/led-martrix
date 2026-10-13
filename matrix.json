@@ -1,15 +1,24 @@
 {
   "power": true,
-  "brightness": 60,
+  "brightness": 100,
   "rotation": {
-    "screens": ["subway", "weather", "markets"],
+    "screens": [
+      "subway",
+      "weather",
+      "markets"
+    ],
     "dwell": 20
   },
   "screens": {
     "markets": {
       "sources": {
-        "/market": {"symbol": "^GSPC", "range": "intraday"}
+        "/market": {
+          "symbol": "NVDA",
+          "range": "intraday",
+          "label": "NVDA"
+        }
       }
     }
-  }
+  },
+  "screen": "markets"
 }
