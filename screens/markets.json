@@ -80,6 +80,9 @@
       },
       "baseline": {
         "path": "/market/baseline"
+      },
+      "dividers": {
+        "path": "/market/dividers"
       }
     }
   ],

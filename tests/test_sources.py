@@ -178,6 +178,7 @@ def test_quote_3day_keeps_last_three_days_and_skips_gaps():
     assert len(q["values"]) == 8 and q["values"][0] == 120      # days 2-4, one gap dropped
     assert q["label"] == "X" and q["range_label"] == "3D"
     assert q["baseline"] == 120 and q["change_label"] == "-25.00%" and q["color"] == "red"
+    assert len(q["dividers"]) == 2 and all(q["dividers"][i] > 0 for i in range(2))   # one split per day boundary
 
 
 def test_market_quote_source_validation():

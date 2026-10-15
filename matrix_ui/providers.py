@@ -99,6 +99,7 @@ def quote_from_chart(symbol, label, range_, meta, timestamps, closes):
     if not points:
         raise ValueError(f"no price data for {symbol}")
     values = [c for _, c in points]
+    dividers = [i for i in range(1, len(points)) if points[i][0] != points[i - 1][0]]
     price = meta.get("regularMarketPrice", values[-1])
     baseline = meta.get("chartPreviousClose", values[0]) if range_ == "intraday" else values[0]
     change = price - baseline
@@ -111,6 +112,7 @@ def quote_from_chart(symbol, label, range_, meta, timestamps, closes):
         "color": "green" if change >= 0 else "red",
         "baseline": baseline,
         "values": values,
+        "dividers": dividers,
     }
 
 

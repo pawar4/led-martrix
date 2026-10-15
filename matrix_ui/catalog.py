@@ -431,9 +431,11 @@ class ForecastSlot(Widget):
 class LineChart(Widget):
     """Line chart of `values` stretched to the box width and scaled to its height (min to max).
     `fill` shades the area under the line. `baseline` (e.g. the previous close) is drawn as a dashed
-    line and included in the scale."""
+    line and included in the scale. `dividers` are indexes into `values` where a 1px full-height column is
+    drawn (e.g. the first point of each day), behind the line."""
     props = {"values": (v_number_list, []), "color": (v_color, COLORS["green"]), "fill": (v_color, None),
-             "baseline": (v_number, None), "baseline_color": (v_color, (60, 60, 60))}
+             "baseline": (v_number, None), "baseline_color": (v_color, (60, 60, 60)),
+             "dividers": (v_number_list, []), "divider_color": (v_color, (60, 60, 60))}
     loading_props = ("values",)
 
     def render_loading(self, ctx, rect, p, node, waiting):
@@ -460,6 +462,11 @@ class LineChart(Widget):
             for i, y in enumerate(ys):
                 for yy in range(y + 1, rect.y + rect.h):
                     ctx.canvas.SetPixel(rect.x + i, yy, *p["fill"])
+        for idx in p["dividers"]:
+            if 0 < idx < len(values):
+                x = rect.x + round(idx * (rect.w - 1) / (len(values) - 1))
+                for yy in range(rect.y, rect.y + rect.h):
+                    ctx.canvas.SetPixel(x, yy, *p["divider_color"])
         if baseline is not None:
             for x in range(rect.x, rect.x + rect.w):
                 if (x - rect.x) % 4 < 2:
