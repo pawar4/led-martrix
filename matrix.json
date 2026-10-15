@@ -4,12 +4,12 @@
   "schedule": [
     {
       "screen": "weather",
-      "at": "0 */15 * * * *",
+      "at": "30 * * * * *",
       "for": 15
     },
     {
       "screen": "markets",
-      "at": "15 */15 * * * *",
+      "at": "45 * * * * *",
       "for": 15
     },
     {
