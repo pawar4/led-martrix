@@ -55,6 +55,9 @@
       "name": {
         "path": "/trains/E/name"
       },
+      "direction": {
+        "path": "/trains/E/direction"
+      },
       "arrivals": {
         "path": "/trains/E/arrivals"
       }
@@ -66,6 +69,9 @@
       "route": "7",
       "name": {
         "path": "/trains/7/name"
+      },
+      "direction": {
+        "path": "/trains/7/direction"
       },
       "arrivals": {
         "path": "/trains/7/arrivals"

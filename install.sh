@@ -88,9 +88,8 @@ if [ $DRY = 0 ] && "$VENV/bin/python" -c "import rgbmatrix" 2>/dev/null; then
 else
   [ -d "$BINDINGS_DIR/.git" ] || { sudo_run mkdir -p "$BINDINGS_DIR"; sudo_run chown "$RUN_USER": "$BINDINGS_DIR"
     run git clone --depth 1 https://github.com/hzeller/rpi-rgb-led-matrix.git "$BINDINGS_DIR"; }
-  run "$VENV/bin/pip" install --quiet cython setuptools wheel
-  run make -C "$BINDINGS_DIR" build-python PYTHON="$VENV/bin/python"
-  run make -C "$BINDINGS_DIR" install-python PYTHON="$VENV/bin/python"
+  # Upstream's bindings are pip-installable (scikit-build-core + cmake; pip fetches the build tools itself).
+  run "$VENV/bin/pip" install "$BINDINGS_DIR"
 fi
 
 # The panel driver needs the Pi's sound hardware off (they share the PWM peripheral).

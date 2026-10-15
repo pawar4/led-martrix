@@ -321,10 +321,20 @@ class TrainBadge(Widget):
         draw_badge(ctx, rect, p["route"], color, p["radius"])
 
 
+def draw_arrow(canvas, x, y, up, color):
+    """5px wide, 3px tall triangle with its top-left corner at (x, y)."""
+    for row in range(3):
+        half = row if up else 2 - row
+        for dx in range(2 - half, 3 + half):
+            canvas.SetPixel(x + dx, y + row, *color)
+
+
 @register("TrainRow")
 class TrainRow(Widget):
-    """Route bullet, station name and next arrivals (yellow when the first is <= 2 min away)."""
-    props = {"route": (v_text, None), "name": (v_text, ""), "arrivals": (v_int_list, [])}
+    """Route bullet, station name and next arrivals (yellow when the first is <= 2 min away).
+    `direction` (N or S) draws an up arrow above the badge or a down arrow below it."""
+    props = {"route": (v_text, None), "name": (v_text, ""), "arrivals": (v_int_list, []),
+             "direction": (v_oneof("N", "S", ""), "")}
     required = ("route",)
 
     def render(self, ctx, rect, p, node):
@@ -334,6 +344,9 @@ class TrainRow(Widget):
         font = ctx.fonts["small"]
         text_w = rect.w - 18
         draw_text(ctx, rect.x + 18, mid, fit_text(font, p["name"], text_w), COLORS["white"], "small")
+        if p["direction"]:      # the badge is 13px tall: the arrow sits in the gap on the side it points to
+            up = p["direction"] == "N"
+            draw_arrow(ctx.canvas, rect.x + 6, mid - 10 if up else mid + 8, up, COLORS["cyan"])
         arrivals = p["arrivals"]
         if arrivals:
             color = COLORS["yellow"] if arrivals[0] <= 2 else COLORS["white"]

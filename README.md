@@ -34,7 +34,7 @@ git clone <this repo> && cd led-martrix
 
 It installs to `/opt/led-matrix`, builds the `rgbmatrix` bindings into that venv, and enables `led-matrix` (the runner,
 `run.py --live`) and `led-matrix-assistant` (`serve.py`, once the Claude Code CLI is logged in as the install user).
-Re-run it to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
+From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the old `new_subway.py` cron job, run `install.sh`; `--dry-run` first, `PI_HOST=user@host` to override; `--push-config` also overwrites the Pi's `matrix.json` with yours, which a plain deploy keeps because the assistant edits it there). Re-run either to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
 
 ## Layout
 
@@ -44,6 +44,7 @@ Re-run it to deploy code changes; `matrix.json` and the env file are kept. Reboo
 | `screens/` | Screen configs, each with a `<name>.sample_data.json` for previews |
 | `assets/` | Pictures that screens load with `Image` (`tanner.png` is the guest countdown picture) |
 | `serve.py`, `matrix_ui/assistant.py` | HTTP service that turns a plain-English request into a change to `matrix.json` (Claude + validation); for Home Assistant. See `docs/assistant.md` |
+| `deploy.sh` | Run from your laptop: syncs the repo to the Pi over SSH, removes the old `new_subway.py` `@reboot` cron entry and process, then runs `install.sh` there |
 | `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services, optional Home Assistant (`--with-homeassistant`) |
 | `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |

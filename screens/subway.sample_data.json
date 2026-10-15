@@ -1,7 +1,7 @@
 {
   "weather": {"code": 1, "temp_label": "72F"},
   "trains": {
-    "E": {"name": "Court Sq", "arrivals": [11, 17, 24]},
-    "7": {"name": "Vern-Jack", "arrivals": [2, 14, 20]}
+    "E": {"name": "Court Sq", "direction": "S", "arrivals": [11, 17, 24]},
+    "7": {"name": "Vern-Jack", "direction": "S", "arrivals": [2, 14, 20]}
   }
 }

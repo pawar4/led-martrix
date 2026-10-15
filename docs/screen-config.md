@@ -38,15 +38,17 @@ writes into the data model under its own `mount` path, and the component binding
 | `file` | `path*`, `interval` (0.5) | the JSON file's contents; reloaded when it changes |
 | `http_json` | `url*`, `headers`, `interval` (30) | the response body |
 | `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
-| `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
+| `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `count` (6), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
 | `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values}` (Yahoo Finance, no key) |
 | `trivia` | `path*`, `question_seconds` (15), `reveal_seconds` (5), `questions` (5), `provider` (`local`), `difficulty` | `{category, value_label, count_label, phase, body, body_color, bar_color, progress, scroll}` (a local clue bank) |
-| `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, arrivals}}` (nyct-gtfs) |
+| `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, direction, arrivals}}` (nyct-gtfs) |
 
-`weather_forecast` `day` is `today`, `tomorrow` or a `YYYY-MM-DD` date (Open-Meteo forecasts go about 16 days ahead);
+`weather_forecast` `day` is `now`, `today`, `tomorrow` or a `YYYY-MM-DD` date (Open-Meteo forecasts go about 16 days ahead);
 `step_hours` must divide 24. Slots run from `start_hour` to `end_hour` (inclusive, 0-23), so the defaults give
 6am, 9am, 12pm, 3pm, 6pm, 9pm (10pm isn't a 3-hour step from 6am). "today" follows the
-machine's clock.
+machine's clock. `now` is a rolling window instead: `count` slots (1-8) every `step_hours`
+starting at the current hour at the location (`start_hour`/`end_hour` are ignored), e.g. 2pm, 5pm, 8pm, 11pm, 2am, 5am;
+`date_label` is today's date there.
 
 `market_quote` `range` picks the chart: `intraday` is today's session at 5-minute steps, with the change measured
 against the previous close; `3day` is the last three trading days at 15-minute steps, with the change measured

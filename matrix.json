@@ -1,22 +1,22 @@
 {
   "power": true,
-  "brightness": 100,
+  "brightness": 50,
   "schedule": {
     "default": "subway",
-    "every": 900,
+    "every": 60,
     "screens": [
       "weather",
       "markets"
     ],
-    "duration": 15
+    "duration": 10
   },
   "screens": {
     "markets": {
       "sources": {
         "/market": {
-          "symbol": "NVDA",
-          "range": "intraday",
-          "label": "NVDA"
+          "symbol": "SPY",
+          "range": "3day",
+          "label": "SPY"
         }
       }
     }

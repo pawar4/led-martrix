@@ -25,7 +25,7 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 | `Icon` | `name` or `weather_code` | 10x10 pixel art; `weather_code` is an Open-Meteo code |
 | `Divider` | `color`, `orientation` (horizontal/vertical) | A one-pixel line through the middle of its box |
 | `TrainBadge` | `route` (required), `color`, `radius` (6) | Coloured circle with the route letter; colour defaults to the MTA route colour |
-| `TrainRow` | `route` (required), `name`, `arrivals` (list of minutes) | Badge, station name, next arrivals; yellow when the first is 2 min or less, "No data" when empty |
+| `TrainRow` | `route` (required), `name`, `arrivals` (list of minutes), `direction` (`N`, `S` or empty) | Badge, station name, next arrivals; `direction` draws a cyan arrow in the badge column: up (`N`, uptown) above the badge, down (`S`, downtown) below it; yellow when the first is 2 min or less, "No data" when empty |
 | `ForecastSlot` | `hour`, `weather_code`, `temp`, `hour_color` (dim), `temp_color` (white) | Weather icon, hour label and temperature; sized for a 32x14 box or taller (two per row) |
 | `LineChart` | `values` (list of numbers), `color` (green), `fill`, `baseline`, `baseline_color` (dim grey) | Line stretched across the box, min at the bottom and max at the top; `fill` shades under the line; `baseline` is a dashed line included in the scale |
 

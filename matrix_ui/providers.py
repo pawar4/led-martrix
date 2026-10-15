@@ -40,22 +40,36 @@ def hour_label(h):
     return f"{h % 12 or 12}{'am' if h < 12 else 'pm'}"
 
 
-def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", start_hour=6, end_hour=22, timeout=10):
+def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", start_hour=6, end_hour=22, count=6, timeout=10):
     """{"date_label", "slots": [{"hour", "code", "temp_label"}, ...]}: a slot every `step_hours` from
-    `start_hour` up to and including `end_hour` of `day`."""
-    d = resolve_day(day)
+    `start_hour` up to and including `end_hour` of `day`. With day="now", `count` slots every `step_hours`
+    starting at the current hour at the location (start_hour/end_hour are ignored)."""
+    rolling = day == "now"
+    d = date.today() if rolling else resolve_day(day)
+    last = d + timedelta(days=1) if rolling else d
     qs = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
         "hourly": "temperature_2m,weather_code",
         "temperature_unit": units,
         "timezone": "auto",
-        "start_date": d.isoformat(), "end_date": d.isoformat(),
+        "start_date": (d - timedelta(days=1)).isoformat() if rolling else d.isoformat(),
+        "end_date": (last + timedelta(days=1)).isoformat() if rolling else d.isoformat(),
     })
     with urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?{qs}", timeout=timeout) as r:
-        hourly = json.load(r)["hourly"]
-    slots = [{"hour": hour_label(h), "code": hourly["weather_code"][h],
-              "temp_label": f"{round(hourly['temperature_2m'][h])}{units[0].upper()}"}
-             for h in range(start_hour, end_hour + 1, step_hours)]
+        data = json.load(r)
+    hourly = data["hourly"]
+    if rolling:
+        # hourly["time"] is local to the location; find the current local hour in it
+        local = datetime.now(timezone.utc) + timedelta(seconds=data.get("utc_offset_seconds", 0))
+        d = local.date()
+        first = hourly["time"].index(local.strftime("%Y-%m-%dT%H:00"))
+        indexes = [first + i * step_hours for i in range(count)]
+        hours = [(local.hour + i * step_hours) % 24 for i in range(count)]
+    else:
+        indexes = hours = list(range(start_hour, end_hour + 1, step_hours))
+    slots = [{"hour": hour_label(h), "code": hourly["weather_code"][i],
+              "temp_label": f"{round(hourly['temperature_2m'][i])}{units[0].upper()}"}
+             for i, h in zip(indexes, hours)]
     return {"date_label": d.strftime("%a %b %d"), "slots": slots}
 
 
@@ -101,7 +115,7 @@ def quote_from_chart(symbol, label, range_, meta, timestamps, closes):
 
 
 def fetch_arrivals(stations, walk_minutes, max_arrivals):
-    """{route: {"name", "arrivals": [minutes, ...]}}. If any feed raises, the whole poll fails."""
+    """{route: {"name", "direction", "arrivals": [minutes, ...]}}. If any feed raises, the whole poll fails."""
     from nyct_gtfs import NYCTFeed      # imported lazily: only needed for live data
 
     out = {}
@@ -114,7 +128,7 @@ def fetch_arrivals(stations, walk_minutes, max_arrivals):
             for st in train.stop_time_updates
             if st.stop_id == stop and (mins := (st.arrival - now).total_seconds() / 60) >= walk_minutes
         )
-        out[route] = {"name": cfg["name"], "arrivals": arrivals[:max_arrivals]}
+        out[route] = {"name": cfg["name"], "direction": cfg["direction"], "arrivals": arrivals[:max_arrivals]}
     return out
 
 
@@ -271,17 +285,23 @@ def v_stations(v):
 
 
 def v_day(v):
-    if v not in ("today", "tomorrow"):
+    if v not in ("now", "today", "tomorrow"):
         try:
             date.fromisoformat(v)
         except (TypeError, ValueError):
-            raise ValueError(f"expected 'today', 'tomorrow' or a YYYY-MM-DD date, got {v!r}")
+            raise ValueError(f"expected 'now', 'today', 'tomorrow' or a YYYY-MM-DD date, got {v!r}")
     return v
 
 
 def v_step_hours(v):
     if isinstance(v, bool) or v not in (1, 2, 3, 4, 6, 8, 12):
         raise ValueError(f"expected a divisor of 24 (1, 2, 3, 4, 6, 8 or 12), got {v!r}")
+    return v
+
+
+def v_count(v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 8:
+        raise ValueError(f"expected a slot count from 1 to 8, got {v!r}")
     return v
 
 
@@ -312,12 +332,12 @@ def _weather(mount, lat, lon, units, interval):
 
 
 @source_type("weather_forecast", lat=(v_number, REQUIRED), lon=(v_number, REQUIRED), day=(v_day, "today"),
-             step_hours=(v_step_hours, 3), start_hour=(v_hour, 6), end_hour=(v_hour, 22),
+             step_hours=(v_step_hours, 3), start_hour=(v_hour, 6), end_hour=(v_hour, 22), count=(v_count, 6),
              units=(v_units, "fahrenheit"), interval=(v_interval, 1800))
-def _weather_forecast(mount, lat, lon, day, step_hours, start_hour, end_hour, units, interval):
+def _weather_forecast(mount, lat, lon, day, step_hours, start_hour, end_hour, count, units, interval):
     if end_hour < start_hour:
         raise ConfigError(f"weather_forecast: end_hour {end_hour} is before start_hour {start_hour}")
-    return PollingSource(lambda: fetch_forecast(lat, lon, day, step_hours, units, start_hour, end_hour), interval, mount)
+    return PollingSource(lambda: fetch_forecast(lat, lon, day, step_hours, units, start_hour, end_hour, count), interval, mount)
 
 
 @source_type("market_quote", symbol=(v_str, REQUIRED), label=(v_str, None),

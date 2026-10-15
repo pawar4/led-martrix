@@ -399,3 +399,28 @@ def test_sources_with_same_type_and_params_share_a_key():
     b = build_source({"type": "weather", "mount": "/b", "lat": 1, "lon": 2, "interval": 300})
     c = build_source({"type": "weather", "mount": "/c", "lat": 1, "lon": 3})
     assert a.key == b.key != c.key
+
+
+def test_fetch_forecast_now_is_a_rolling_window(monkeypatch):
+    import io
+    import json as _json
+    from datetime import datetime, timedelta, timezone
+    from matrix_ui import providers
+    now = datetime.now(timezone.utc) - timedelta(hours=4)       # location is UTC-4
+    start = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    times = [(start + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(96)]
+    body = {"utc_offset_seconds": -4 * 3600,
+            "hourly": {"time": times, "temperature_2m": list(range(96)), "weather_code": list(range(96))}}
+    monkeypatch.setattr(providers.urllib.request, "urlopen", lambda url, timeout: io.StringIO(_json.dumps(body)))
+    out = providers.fetch_forecast(1, 2, "now")
+    first = times.index(now.strftime("%Y-%m-%dT%H:00"))
+    assert [s["code"] for s in out["slots"]] == [first + 3 * i for i in range(6)]
+    assert [s["hour"] for s in out["slots"]] == [providers.hour_label((now.hour + 3 * i) % 24) for i in range(6)]
+
+
+def test_train_row_direction_prop():
+    from matrix_ui.catalog import REGISTRY
+    props = REGISTRY["TrainRow"].props
+    assert props["direction"][0]("N") == "N"
+    with pytest.raises(ValueError):
+        props["direction"][0]("X")
