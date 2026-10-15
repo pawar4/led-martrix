@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """HTTP front end for natural-language control of the matrix (for Home Assistant, curl, scripts).
 
-  ANTHROPIC_API_KEY=... python serve.py                       # 127.0.0.1:8099, edits matrix.json
+  python serve.py                                             # 127.0.0.1:8099, edits matrix.json (asks Claude via the Claude Code CLI)
   MATRIX_TOKEN=secret python serve.py --host 0.0.0.0          # reachable from the LAN / a container
 
   POST /ask   {"query": "show the weather", "dry_run": false}  -> {reply, changed, applied, model}
@@ -9,8 +9,7 @@
   GET  /model                                                  -> the current global model
   GET  /health                                                 -> {"ok": true}
 
-  python serve.py --backend cli                 # use the Claude Code CLI instead of the API (no key needed)
-  python serve.py --backend cli --once "show the weather" [--apply]   # one request, print the result, exit
+  python serve.py --once "show the weather" [--apply]   # one request, print the result, exit
 
 If MATRIX_TOKEN is set, every request needs `Authorization: Bearer <token>`. Run `run.py` alongside; it reloads
 the model file this service writes. See matrix_ui/assistant.py.
@@ -22,7 +21,7 @@ import logging
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from matrix_ui.assistant import Assistant, AskError, CliClient
+from matrix_ui.assistant import Assistant, AskError
 
 log = logging.getLogger("serve")
 MAX_BODY = 16 * 1024
@@ -96,8 +95,6 @@ def main():
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8099)
     ap.add_argument("--model", help="Claude model id (default: $MATRIX_AI_MODEL or claude-opus-5-5)")
-    ap.add_argument("--backend", choices=("api", "cli"), default="api",
-                    help="api: Anthropic API ($ANTHROPIC_API_KEY); cli: scripts/claude-propose.sh via the Claude Code CLI")
     ap.add_argument("--once", metavar="QUERY", help="run one request, print the result and exit (a dry run unless --apply)")
     ap.add_argument("--apply", action="store_true", help="with --once, write the model file")
     args = ap.parse_args()
@@ -106,8 +103,7 @@ def main():
     token = os.environ.get("MATRIX_TOKEN")
     if not token and args.host not in ("127.0.0.1", "localhost", "::1"):
         ap.error("set MATRIX_TOKEN when listening on a non-loopback address")
-    assistant = Assistant(args.config, args.screens, model=args.model,
-                          client=CliClient() if args.backend == "cli" else None)
+    assistant = Assistant(args.config, args.screens, model=args.model)
     if args.once:
         try:
             result = assistant.ask(args.once, dry_run=not args.apply)

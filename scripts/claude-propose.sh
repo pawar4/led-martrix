@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
-# Local stand-in for the Anthropic API: run the Claude Code CLI once and print the patch JSON.
+# Run the Claude Code CLI once and print the patch JSON.
 #
 #   claude-propose.sh SYSTEM_FILE SCHEMA_FILE < prompt.txt > patch.json
 #
-# Used by `serve.py --backend cli` (matrix_ui/assistant.py: CliClient). Uses your Claude Code login, so no
-# ANTHROPIC_API_KEY is needed. Set CLAUDE_BIN to pick a binary, MATRIX_AI_MODEL to pick a model.
+# Used by serve.py (matrix_ui/assistant.py: CliClient). Uses your Claude Code login. Set CLAUDE_BIN to pick a binary, MATRIX_AI_MODEL to pick a model.
 set -euo pipefail
 system_file=${1:?usage: claude-propose.sh SYSTEM_FILE SCHEMA_FILE}
 schema_file=${2:?usage: claude-propose.sh SYSTEM_FILE SCHEMA_FILE}

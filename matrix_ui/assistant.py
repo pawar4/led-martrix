@@ -1,7 +1,7 @@
 """Natural-language control of the global model.
 
 `Assistant.ask("show the weather and dim it")` sends the query, the current global model and a description of
-the available screens to Claude, gets back a patch (structured output), applies it to a copy of the model,
+the available screens to Claude (through the Claude Code CLI), gets back a patch (structured output), applies it to a copy of the model,
 validates the result the way the runner will load it, and only then writes the model file, which `run.py`
 reloads. A rejected patch is sent back to Claude once with the error; if it still fails nothing is written.
 """
@@ -13,8 +13,6 @@ import subprocess
 import tempfile
 import threading
 from types import SimpleNamespace
-
-import anthropic
 
 from .app import load_surface
 from .resolver import ConfigError
@@ -155,7 +153,7 @@ def validate_model(model, screens_dir):
 
 
 class CliClient:
-    """Stands in for `anthropic.Anthropic()` by running a script that calls the Claude Code CLI (no API key).
+    """Asks Claude by running a script that calls the Claude Code CLI (uses its login; no API key).
 
     `script` gets the system prompt and schema as file arguments and the conversation on stdin, and prints the
     patch JSON. See scripts/claude-propose.sh.
@@ -198,7 +196,7 @@ class Assistant:
     def __init__(self, config_path="matrix.json", screens_dir="screens", client=None, model=None):
         self.config_path = config_path
         self.screens_dir = screens_dir
-        self.client = client or anthropic.Anthropic()
+        self.client = client or CliClient()
         self.model_name = model or os.environ.get("MATRIX_AI_MODEL") or DEFAULT_MODEL
         self._history = []
         self._lock = threading.Lock()
@@ -252,16 +250,13 @@ class Assistant:
 
     def _propose(self, messages):
         screens = json.dumps(describe_screens(self.screens_dir), indent=1)
-        try:
-            response = self.client.messages.create(
-                model=self.model_name,
-                max_tokens=4000,
-                system=SYSTEM.format(screens=screens),
-                output_config={"effort": "low", "format": {"type": "json_schema", "schema": PATCH_SCHEMA}},
-                messages=messages,
-            )
-        except anthropic.APIError as e:
-            raise AskError(f"AI request failed: {e}")
+        response = self.client.messages.create(
+            model=self.model_name,
+            max_tokens=4000,
+            system=SYSTEM.format(screens=screens),
+            output_config={"effort": "low", "format": {"type": "json_schema", "schema": PATCH_SCHEMA}},
+            messages=messages,
+        )
         if response.stop_reason == "refusal":
             raise AskError("the AI declined that request")
         text = next((b.text for b in response.content if b.type == "text"), None)

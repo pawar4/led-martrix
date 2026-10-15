@@ -1,0 +1,41 @@
+# Home Assistant package: ask the matrix assistant service (serve.py) to change the matrix.
+#
+# Setup:
+#   1. Copy this file next to configuration.yaml (the /config folder).
+#   2. In configuration.yaml add:
+#        homeassistant:
+#          packages:
+#            matrix: !include matrix.yaml
+#   3. In secrets.yaml add (the token is MATRIX_TOKEN from /etc/led-matrix.env on the Pi):
+#        matrix_auth: "Bearer <token>"
+#   4. Change the url below if HA isn't on the Pi itself, then Developer tools > YAML > Check, and Restart.
+#
+# Use: in Assist (the chat/mic icon in the app or sidebar), say or type "matrix show the weather and dim it".
+
+rest_command:
+  matrix_ask:
+    # HA on the Pi uses host networking, so localhost reaches serve.py. From the podman container on a Mac use
+    # http://host.containers.internal:8099/ask, or http://<pi-host>.local:8099/ask from another machine.
+    url: "http://localhost:8099/ask"
+    method: post
+    headers:
+      authorization: !secret matrix_auth
+      content-type: application/json
+    payload: '{"query": {{ query | tojson }}}'
+    timeout: 60        # the CLI backend takes several seconds
+
+automation:
+  - alias: "Matrix: ask by sentence"
+    id: matrix_ask_by_sentence
+    triggers:
+      - trigger: conversation
+        command:
+          - "matrix {query}"
+    actions:
+      - action: rest_command.matrix_ask
+        data:
+          query: "{{ trigger.slots.query }}"
+        response_variable: result
+      - set_conversation_response: >-
+          {% if result.status == 200 %}{{ result.content.reply }}
+          {% else %}{{ result.content.error | default('The matrix service is not answering.') }}{% endif %}

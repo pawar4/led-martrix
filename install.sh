@@ -108,9 +108,6 @@ if [ $DRY = 1 ] || [ ! -f "$ENV_FILE" ]; then
 # Read by led-matrix-assistant.service. Edit, then: sudo systemctl restart led-matrix-assistant
 # Clients (Home Assistant) send this as: Authorization: Bearer <token>
 MATRIX_TOKEN=$TOKEN
-# api = Anthropic API (set ANTHROPIC_API_KEY); cli = the Claude Code CLI logged in as $RUN_USER
-MATRIX_BACKEND=api
-#ANTHROPIC_API_KEY=
 #MATRIX_AI_MODEL=claude-haiku-5-5
 EOF
   echo "generated MATRIX_TOKEN (see $ENV_FILE)"
@@ -145,7 +142,7 @@ Wants=network-online.target
 User=$RUN_USER
 WorkingDirectory=$INSTALL_DIR
 EnvironmentFile=$ENV_FILE
-ExecStart=$VENV/bin/python serve.py --host 0.0.0.0 --backend \${MATRIX_BACKEND}
+ExecStart=$VENV/bin/python serve.py --host 0.0.0.0
 Restart=always
 RestartSec=5
 
@@ -156,9 +153,9 @@ sudo_run systemctl daemon-reload
 sudo_run systemctl enable led-matrix.service
 sudo_run systemctl restart led-matrix.service
 
-# Start the assistant only once it has a way to reach Claude.
+# Start the assistant only once the Claude Code CLI is available to it.
 ASSISTANT=off
-if [ $DRY = 0 ] && sudo grep -Eq '^(ANTHROPIC_API_KEY=.+|MATRIX_BACKEND=cli)' "$ENV_FILE"; then
+if [ $DRY = 0 ] && command -v claude >/dev/null 2>&1; then
   sudo_run systemctl enable led-matrix-assistant.service
   sudo_run systemctl restart led-matrix-assistant.service
   ASSISTANT=on
@@ -202,8 +199,7 @@ Assistant:      $ASSISTANT$( [ "$ASSISTANT" = on ] && echo "  http://$HOST:8099/
 EOF
 if [ "$ASSISTANT" = off ]; then
   cat <<EOF
-                To enable: put ANTHROPIC_API_KEY=... in $ENV_FILE (or MATRIX_BACKEND=cli after logging in to the
-                Claude Code CLI as $RUN_USER), then rerun ./install.sh or:
+                To enable: install the Claude Code CLI and log in as $RUN_USER, then rerun ./install.sh or:
                   sudo systemctl enable --now led-matrix-assistant
 EOF
 fi

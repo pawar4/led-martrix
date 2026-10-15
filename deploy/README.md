@@ -16,3 +16,8 @@ the alternative for podman >= 4.4. Logs: `journalctl -u led-matrix -f`, `journal
   `podman run`. Install podman first (`brew install podman && podman machine init && podman machine start`).
 
 The matrix runner itself stays on the Pi host (it needs GPIO), not in a container.
+
+## Connecting Home Assistant to the matrix
+
+Follow the steps at the top of `deploy/homeassistant/matrix.yaml` (a package file: a `rest_command` that calls
+`serve.py`'s `/ask`, and an Assist sentence `matrix <anything>` that sends the text and speaks or shows the `reply`).

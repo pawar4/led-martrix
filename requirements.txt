@@ -3,4 +3,3 @@ RGBMatrixEmulator
 Pillow
 pytest
 nyct-gtfs
-anthropic

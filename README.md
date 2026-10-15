@@ -18,7 +18,7 @@ python preview.py screens/weather.json             # 3-hour forecast for one day
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")
-ANTHROPIC_API_KEY=... python serve.py              # POST /ask {"query": "show the weather"} edits matrix.json (run alongside run.py)
+python serve.py                                     # POST /ask {"query": "show the weather"} edits matrix.json (run alongside run.py)
 python run.py                                      # the global model (matrix.json) picks, rotates and configures screens; add --live for real data
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
@@ -33,7 +33,7 @@ git clone <this repo> && cd led-martrix
 ```
 
 It installs to `/opt/led-matrix`, builds the `rgbmatrix` bindings into that venv, and enables `led-matrix` (the runner,
-`run.py --live`) and `led-matrix-assistant` (`serve.py`, once `/etc/led-matrix.env` has an API key or `MATRIX_BACKEND=cli`).
+`run.py --live`) and `led-matrix-assistant` (`serve.py`, once the Claude Code CLI is logged in as the install user).
 Re-run it to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
 
 ## Layout

@@ -10,7 +10,7 @@ request ──> serve.py ──> Assistant.ask ──> Claude (query + current m
 ```
 
 ```bash
-ANTHROPIC_API_KEY=... python serve.py                      # 127.0.0.1:8099
+python serve.py                                            # 127.0.0.1:8099
 MATRIX_TOKEN=secret python serve.py --host 0.0.0.0         # LAN / container access; a token is required off loopback
 curl -s localhost:8099/ask -d '{"query": "show the weather and dim it"}'
 ```
@@ -23,7 +23,7 @@ curl -s localhost:8099/ask -d '{"query": "show the weather and dim it"}'
 | `GET /health` | no auth needed |
 
 With `MATRIX_TOKEN` set, send `Authorization: Bearer <token>`. Errors return `{"error"}`: 400 bad request, 401 auth,
-422 the AI's patch couldn't be applied or the AI call failed.
+422 the AI's patch couldn't be applied or the CLI call failed.
 
 ## What the AI can change
 
@@ -36,26 +36,24 @@ The prompt lists every `screens/*.json` with its sources. A patch naming an unkn
 source rejects, fails validation (`load_surface`, the same loader the runner uses) before anything is written. The
 error goes back to Claude once; if the second try fails, `/ask` returns 422 and the file is untouched.
 
-## Local testing without an API key
+## How it asks Claude
 
-`--backend cli` swaps the API for `scripts/claude-propose.sh`, which runs `claude -p` (no tools, structured output)
-with your Claude Code login and prints the patch. `Assistant` is unchanged, so validation, retry and undo behave the
-same (`CliClient` in `matrix_ui/assistant.py`). The script finds `claude` via `$CLAUDE_BIN`, `PATH`, or the VS Code
+`scripts/claude-propose.sh` runs `claude -p` (no tools, structured output) with your Claude Code login and prints the
+patch (`CliClient` in `matrix_ui/assistant.py`). There is no API key or SDK. The script finds `claude` via `$CLAUDE_BIN`, `PATH`, or the VS Code
 extension's bundled binary.
 
 ```bash
-python serve.py --backend cli --once "put the weather on and dim it"           # dry run, prints the result
-python serve.py --backend cli --once "put the weather on and dim it" --apply   # writes matrix.json
-python serve.py --backend cli                                                  # the HTTP service
+python serve.py --once "put the weather on and dim it"           # dry run, prints the result
+python serve.py --once "put the weather on and dim it" --apply   # writes matrix.json
+python serve.py                                                                 # the HTTP service
 ```
 
-Each request starts a CLI process, so expect several seconds; use the API backend for voice latency.
+Each request starts a CLI process, so expect several seconds.
 
 ## Config
 
 `--config`, `--screens`, `--host`, `--port`, `--model`. The model defaults to `$MATRIX_AI_MODEL`, else `claude-opus-5-5`
-at `low` effort; a smaller model (e.g. `claude-haiku-5-5`) is faster and cheaper for voice use.
-Credentials come from `ANTHROPIC_API_KEY`.
+at `low` effort; a smaller model (e.g. `claude-haiku-5-5`) is faster for voice use.
 
 ## Home Assistant
 
