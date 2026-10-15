@@ -14,7 +14,7 @@ pip install -r requirements.txt
 pytest tests/
 python preview.py screens/subway.json              # emulator in the browser, http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
-python preview.py screens/weather.json             # 3-hour forecast for one day (set "day" in its source)
+python preview.py screens/weather.json             # daylight bar + next 18 hours in 3-hour steps (set "day" to today/tomorrow for a fixed day)
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")

@@ -39,6 +39,8 @@ writes into the data model under its own `mount` path, and the component binding
 | `http_json` | `url*`, `headers`, `interval` (30) | the response body |
 | `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
 | `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `count` (6), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
+| `mta_alerts` | `routes*` (list, e.g. `["E", "7"]`), `interval` (120) | `{route: {label, color, headline, rank}, headline, count}`: the worst active alert per route (`All clear` green, `Svc change` yellow, `Delays` orange, `Suspended` red) and the worst alert's first sentence (MTA alerts feed, no key) |
+| `daylight` | `lat*`, `lon*`, `interval` (60) | `{phase, color, progress, next_label, sunrise_label, sunset_label}`: `phase` is `day` or `night`, `progress` (0-1) how far through it, `color` yellow (day) or blue (night); sun times come from Open-Meteo (fetched a few times a day), the rest is computed each poll |
 | `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values}` (Yahoo Finance, no key) |
 | `trivia` | `path*`, `question_seconds` (15), `reveal_seconds` (5), `questions` (5), `provider` (`local`), `difficulty` | `{category, value_label, count_label, phase, body, body_color, bar_color, progress, scroll}` (a local clue bank) |
 | `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, direction, arrivals}}` (nyct-gtfs) |
@@ -49,6 +51,9 @@ writes into the data model under its own `mount` path, and the component binding
 machine's clock. `now` is a rolling window instead: `count` slots (1-8) every `step_hours`
 starting at the current hour at the location (`start_hour`/`end_hour` are ignored), e.g. 2pm, 5pm, 8pm, 11pm, 2am, 5am;
 `date_label` is today's date there.
+
+`mta_alerts` ignores station notices and extra service, and only counts alerts active right now. `daylight`
+times are local to the given coordinates. Bind `progress` and `color` to a `ProgressBar` for a daylight bar.
 
 `market_quote` `range` picks the chart: `intraday` is today's session at 5-minute steps, with the change measured
 against the previous close; `3day` is the last three trading days at 15-minute steps, with the change measured

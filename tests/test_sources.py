@@ -70,7 +70,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 def test_subway_screen_declares_its_sources():
     surface = Surface.load(os.path.join(ROOT, "screens", "subway.json"))
-    assert sorted(s.mount for s in surface.sources) == ["/trains", "/weather"]
+    assert sorted(s.mount for s in surface.sources) == ["/alerts", "/trains", "/weather"]
 
 
 def test_screen_without_sources_loads():
@@ -424,3 +424,83 @@ def test_train_row_direction_prop():
     assert props["direction"][0]("N") == "N"
     with pytest.raises(ValueError):
         props["direction"][0]("X")
+
+
+# ---- mta_alerts ----
+
+def _alert(alert_type, routes, text, start=0, end=2_000_000_000):
+    return {"alert": {"active_period": [{"start": start, "end": end}],
+                      "informed_entity": [{"route_id": r} for r in routes],
+                      "header_text": {"translation": [{"text": text, "language": "en"},
+                                                      {"text": "<p>html</p>", "language": "en-html"}]},
+                      "transit_realtime.mercury_alert": {"alert_type": alert_type}}}
+
+
+def test_alerts_pick_the_worst_active_alert_per_route():
+    from matrix_ui.providers import alerts_from_feed
+    feed = {"entity": [
+        _alert("Planned - Stops Skipped", ["E", "F"], "E skips 5 Av. Use F instead."),
+        _alert("Delays", ["E"], "E trains are delayed. Expect longer waits."),
+        _alert("Station Notice", ["7"], "Entrance closed."),
+        _alert("Delays", ["7"], "Old delay.", end=100),                      # already over
+        _alert("Planned - Part Suspended", ["A"], "A is suspended."),       # not a route we show
+    ]}
+    out = alerts_from_feed(feed, ["E", "7"], now=1_000_000)
+    assert out["E"] == {"label": "Delays", "color": "orange", "headline": "E trains are delayed.", "rank": 3}
+    assert out["7"]["label"] == "All clear" and out["7"]["color"] == "green"
+
+
+def test_alert_types_map_to_labels():
+    from matrix_ui.providers import alert_rank
+    assert alert_rank("Planned - Part Suspended")[1:] == ("Suspended", "red")
+    assert alert_rank("Planned - Reroute")[1:] == ("Svc change", "yellow")
+    assert alert_rank("Station Notice") is None
+
+
+def test_fetch_alerts_adds_headline_and_count(monkeypatch):
+    import io
+    import json as _json
+    from matrix_ui import providers
+    feed = {"entity": [_alert("Delays", ["E"], "E is delayed. More later.")]}
+    monkeypatch.setattr(providers.urllib.request, "urlopen", lambda req, timeout: io.StringIO(_json.dumps(feed)))
+    out = providers.fetch_alerts(["E", "7"])
+    assert (out["headline"], out["count"]) == ("E is delayed.", 1)
+    feed["entity"] = []
+    assert providers.fetch_alerts(["E", "7"])["headline"] == "No service alerts for E, 7."
+
+
+def test_alerts_source_needs_routes():
+    with pytest.raises(ConfigError, match="non-empty list"):
+        build_source({"type": "mta_alerts", "mount": "/a", "routes": []})
+
+
+# ---- daylight ----
+
+def test_daylight_now_by_day_and_by_night():
+    from datetime import datetime
+    from matrix_ui.providers import daylight_now
+    d = lambda day, h, m=0: datetime(2026, 10, day, h, m)
+    times = [(d(13, 7, 0), d(13, 18, 0)), (d(14, 7, 0), d(14, 18, 0)), (d(15, 7, 0), d(15, 18, 0))]
+    noon = daylight_now(times, d(14, 12, 30))
+    assert (noon["phase"], noon["color"], noon["next_label"]) == ("day", "yellow", "Sunset 5h30m")
+    assert abs(noon["progress"] - 5.5 / 11) < 1e-9
+    assert (noon["sunrise_label"], noon["sunset_label"]) == ("7:00am", "6:00pm")
+    night = daylight_now(times, d(14, 21, 0))
+    assert (night["phase"], night["color"], night["next_label"]) == ("night", "blue", "Rise 10h00m")
+    assert abs(night["progress"] - 3 / 13) < 1e-9
+
+
+def test_daylight_fetcher_fetches_sun_times_once():
+    from datetime import datetime, timedelta
+    from matrix_ui.providers import daylight_fetcher
+    calls = []
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    pairs = [(today + timedelta(days=i, hours=7), today + timedelta(days=i, hours=18)) for i in (-1, 0, 1)]
+    fetch = daylight_fetcher(1, 2, fetch=lambda lat, lon: calls.append(1) or (pairs, 0))
+    assert fetch()["phase"] in ("day", "night") and "progress" in fetch()
+    assert len(calls) == 1
+
+
+def test_first_sentence_stops_at_a_line_break_too():
+    from matrix_ui.providers import first_sentence
+    assert first_sentence("[7] skips 52 St\nAll trains board here.") == "[7] skips 52 St."

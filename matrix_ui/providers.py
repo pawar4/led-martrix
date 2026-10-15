@@ -132,6 +132,112 @@ def fetch_arrivals(stations, walk_minutes, max_arrivals):
     return out
 
 
+ALERTS_URL = "https://api-endpoint.mta.info/Dataservice/mtagtfsfeeds/camsys%2Fsubway-alerts.json"
+# (alert_type substring, rank, label, colour): the worst alert on a route sets its status
+ALERT_RANKS = [("Suspended", 4, "Suspended", "red"), ("No Scheduled", 4, "No service", "red"),
+               ("Delays", 3, "Delays", "orange")]
+IGNORED_ALERTS = ("Station Notice", "Extra Service")
+GOOD_SERVICE = {"label": "All clear", "color": "green", "headline": "", "rank": 0}
+
+
+def alert_rank(alert_type):
+    """(rank, label, colour) for an alert type, or None for alerts that don't affect service."""
+    if any(i in alert_type for i in IGNORED_ALERTS):
+        return None
+    for needle, rank, label, color in ALERT_RANKS:
+        if needle in alert_type:
+            return rank, label, color
+    return 1, "Svc change", "yellow"
+
+
+def first_sentence(text):
+    return text.strip().split("\n")[0].split(". ")[0].strip().rstrip(".") + "."
+
+
+def alerts_from_feed(feed, routes, now=None):
+    """{route: {"label", "color", "headline", "rank"}} from a GTFS-realtime alerts feed (as JSON): the worst active
+    alert on each of `routes`, or "All clear". `headline` is that alert's first sentence."""
+    now = now if now is not None else time.time()
+    out = {r: dict(GOOD_SERVICE) for r in routes}
+    best = {}
+    for entity in feed.get("entity", []):
+        alert = entity.get("alert", {})
+        periods = alert.get("active_period") or [{}]
+        if not any(p.get("start", 0) <= now <= p.get("end", float("inf")) for p in periods):
+            continue
+        ranked = alert_rank(alert.get("transit_realtime.mercury_alert", {}).get("alert_type", ""))
+        texts = [t["text"] for t in alert.get("header_text", {}).get("translation", []) if t.get("language") == "en"]
+        if not ranked or not texts:
+            continue
+        for route in {i.get("route_id") for i in alert.get("informed_entity", [])} & set(routes):
+            if route not in best or ranked[0] > best[route][0]:
+                best[route] = ranked
+                out[route] = {"label": ranked[1], "color": ranked[2], "headline": first_sentence(texts[0]), "rank": ranked[0]}
+    return out
+
+
+def fetch_alerts(routes, timeout=10):
+    """Active subway service alerts for `routes`, plus `headline` (the worst one overall) and `count`."""
+    req = urllib.request.Request(ALERTS_URL, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        feed = json.load(r)
+    out = alerts_from_feed(feed, routes)
+    worst = max(out.values(), key=lambda a: a["rank"])
+    return {**out, "headline": worst["headline"] or "No service alerts for " + ", ".join(routes) + ".",
+            "count": sum(a["rank"] > 0 for a in out.values())}
+
+
+def clock_label(t):
+    """datetime -> '7:06am'."""
+    return f"{t.hour % 12 or 12}:{t.minute:02}{'am' if t.hour < 12 else 'pm'}"
+
+
+def daylight_now(sun_times, now):
+    """Daylight state from `sun_times` ([(sunrise, sunset), ...] for consecutive local days,
+    naive datetimes) and the local time `now`. `progress` is how far through the current day or night we are."""
+    events = sorted(t for pair in sun_times for t in pair)
+    prev = max((t for t in events if t <= now), default=None)
+    nxt = min((t for t in events if t > now), default=None)
+    is_day = any(rise <= now < sett for rise, sett in sun_times)
+    out = {"phase": "day" if is_day else "night", "color": "yellow" if is_day else "blue",
+           "progress": 0, "next_label": ""}
+    if prev and nxt:
+        out["progress"] = (now - prev) / (nxt - prev)
+    if nxt:
+        mins = int((nxt - now).total_seconds() // 60)
+        out["next_label"] = f"{'Sunset' if is_day else 'Rise'} {mins // 60}h{mins % 60:02}m"
+    today = next((p for p in sun_times if p[0].date() == now.date()), None)
+    if today:
+        out["sunrise_label"], out["sunset_label"] = clock_label(today[0]), clock_label(today[1])
+    return out
+
+
+def fetch_sun_times(lat, lon, timeout=10):
+    """([(sunrise, sunset), ...] for yesterday, today and tomorrow as naive local datetimes, utc offset in s)."""
+    qs = urllib.parse.urlencode({"latitude": lat, "longitude": lon, "daily": "sunrise,sunset",
+                                 "timezone": "auto", "past_days": 1, "forecast_days": 2})
+    with urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?{qs}", timeout=timeout) as r:
+        data = json.load(r)
+    daily = data["daily"]
+    pairs = [(datetime.fromisoformat(a), datetime.fromisoformat(b)) for a, b in zip(daily["sunrise"], daily["sunset"])]
+    return pairs, data.get("utc_offset_seconds", 0)
+
+
+def daylight_fetcher(lat, lon, fetch=fetch_sun_times):
+    """A fetch callable for PollingSource: sun times are fetched once per local day, the rest is computed."""
+    cache = {}
+
+    def fetch_daylight():
+        utc = datetime.now(timezone.utc)
+        if not cache or cache["valid_until"] <= utc.timestamp():
+            pairs, offset = fetch(lat, lon)
+            # the offset can change with daylight saving, so refetch at least every 6 hours
+            cache.update(pairs=pairs, offset=offset, valid_until=utc.timestamp() + 6 * 3600)
+        local = (utc + timedelta(seconds=cache["offset"])).replace(tzinfo=None)
+        return daylight_now(cache["pairs"], local)
+    return fetch_daylight
+
+
 def load_clues(path):
     """Read a clue bank: a JSON list of {category, value, clue, answer}."""
     try:
@@ -284,6 +390,12 @@ def v_stations(v):
     return v
 
 
+def v_routes(v):
+    if not isinstance(v, list) or not v or not all(isinstance(r, str) and r for r in v):
+        raise ValueError(f"expected a non-empty list of route names like ['E', '7'], got {v!r}")
+    return v
+
+
 def v_day(v):
     if v not in ("now", "today", "tomorrow"):
         try:
@@ -350,6 +462,16 @@ def _market_quote(mount, symbol, label, range, interval):
              max_arrivals=(v_nonneg, 3), interval=(v_interval, 30))
 def _mta_arrivals(mount, stations, walk_minutes, max_arrivals, interval):
     return PollingSource(lambda: fetch_arrivals(stations, walk_minutes, int(max_arrivals)), interval, mount)
+
+
+@source_type("mta_alerts", routes=(v_routes, REQUIRED), interval=(v_interval, 120))
+def _mta_alerts(mount, routes, interval):
+    return PollingSource(lambda: fetch_alerts(routes), interval, mount)
+
+
+@source_type("daylight", lat=(v_number, REQUIRED), lon=(v_number, REQUIRED), interval=(v_interval, 60))
+def _daylight(mount, lat, lon, interval):
+    return PollingSource(daylight_fetcher(lat, lon), interval, mount)
 
 
 def v_questions(v):

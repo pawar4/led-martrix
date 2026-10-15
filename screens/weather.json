@@ -5,10 +5,27 @@
       "id": "root",
       "component": "Column",
       "children": [
+        "daylight",
         "date",
         "r0",
         "r1",
         "r2"
+      ]
+    },
+    {
+      "id": "daylight",
+      "component": "ProgressBar",
+      "height": 2,
+      "value": {
+        "path": "/daylight/progress"
+      },
+      "color": {
+        "path": "/daylight/color"
+      },
+      "track": [
+        25,
+        25,
+        25
       ]
     },
     {
@@ -155,6 +172,13 @@
       "interval": 1800,
       "lat": 40.7128,
       "lon": -74.006
+    },
+    {
+      "type": "daylight",
+      "mount": "/daylight",
+      "lat": 40.7128,
+      "lon": -74.006,
+      "interval": 60
     }
   ]
 }

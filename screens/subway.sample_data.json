@@ -1,7 +1,42 @@
 {
-  "weather": {"code": 1, "temp_label": "72F"},
+  "weather": {
+    "code": 1,
+    "temp_label": "72F"
+  },
   "trains": {
-    "E": {"name": "Court Sq", "direction": "S", "arrivals": [11, 17, 24]},
-    "7": {"name": "Vern-Jack", "direction": "S", "arrivals": [2, 14, 20]}
+    "E": {
+      "name": "Court Sq",
+      "direction": "S",
+      "arrivals": [
+        11,
+        17,
+        24
+      ]
+    },
+    "7": {
+      "name": "Vern-Jack",
+      "direction": "S",
+      "arrivals": [
+        2,
+        14,
+        20
+      ]
+    }
+  },
+  "alerts": {
+    "E": {
+      "label": "Delays",
+      "color": "orange",
+      "headline": "E trains are delayed.",
+      "rank": 3
+    },
+    "7": {
+      "label": "All clear",
+      "color": "green",
+      "headline": "",
+      "rank": 0
+    },
+    "headline": "E trains are delayed.",
+    "count": 1
   }
 }

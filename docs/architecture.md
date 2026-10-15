@@ -31,7 +31,7 @@ are unchanged. See [screen-config.md](screen-config.md#global-model) for the key
 - `datamodel.py`: thread-safe `get(path, default)` / `set(path, value)`.
 - `sources.py`: `Source` base class, `StaticFileSource`, `PollingSource`, the `source_type` registry and
   `build_sources` (validates the config's `sources`). Generic types: `file`, `http_json`.
-- `providers.py`: service-specific source types (`weather`, `weather_forecast`, `market_quote`, `trivia`, `mta_arrivals`).
+- `providers.py`: service-specific source types (`weather`, `weather_forecast`, `market_quote`, `trivia`, `mta_arrivals`, `mta_alerts`, `daylight`).
 - `backend.py`: uses `rgbmatrix` if installed, else `RGBMatrixEmulator`. Also `make_matrix()` and
   `load_fonts()` (searches `$MATRIX_FONTS_DIR`, repo `fonts/`, then the Pi's font path).
 - `icons.py`: pixel-art icons copied from `new_subway.py`.

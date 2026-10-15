@@ -335,3 +335,18 @@ def test_image_scales_to_fit_and_centres(tmp_path):
 def test_image_missing_file_draws_nothing():
     canvas, _ = render(screen({"id": "i", "component": "Image", "path": "no/such/file.png"}, root="i"))
     assert canvas.pixels == {}
+
+
+def test_weather_sample_has_a_daylight_bar():
+    data = json.load(open(os.path.join(ROOT, "screens/weather.sample_data.json")))
+    canvas, _ = render(os.path.join(ROOT, "screens/weather.json"), data)
+    assert canvas.pixels[(0, 0)] == canvas.pixels[(38, 1)] == (255, 220, 0)      # 62% of 64px filled
+    assert canvas.pixels[(60, 0)] == (25, 25, 25)
+
+
+def test_train_row_alert_dot():
+    def dot(color):
+        cfg = screen({"id": "r", "component": "TrainRow", "route": "E", "alert": color}, root="r")
+        return render(cfg)[0].pixels.get((14, 25))
+    assert dot("orange") == (255, 120, 0)
+    assert dot("green") is None

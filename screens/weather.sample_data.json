@@ -33,5 +33,13 @@
         "temp_label": "60F"
       }
     ]
+  },
+  "daylight": {
+    "phase": "day",
+    "color": "yellow",
+    "progress": 0.62,
+    "next_label": "Sunset 4h12m",
+    "sunrise_label": "7:06am",
+    "sunset_label": "6:17pm"
   }
 }

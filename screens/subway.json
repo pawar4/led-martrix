@@ -60,6 +60,9 @@
       },
       "arrivals": {
         "path": "/trains/E/arrivals"
+      },
+      "alert": {
+        "path": "/alerts/E/color"
       }
     },
     {
@@ -75,6 +78,9 @@
       },
       "arrivals": {
         "path": "/trains/7/arrivals"
+      },
+      "alert": {
+        "path": "/alerts/7/color"
       }
     }
   ],
@@ -104,6 +110,15 @@
       "interval": 600,
       "lat": 40.7128,
       "lon": -74.006
+    },
+    {
+      "type": "mta_alerts",
+      "mount": "/alerts",
+      "routes": [
+        "E",
+        "7"
+      ],
+      "interval": 120
     }
   ]
 }
