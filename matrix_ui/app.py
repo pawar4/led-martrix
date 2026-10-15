@@ -4,10 +4,15 @@ Model layout (`/app` is the control state, loaded from a JSON file and reloaded 
 
   /app/power        false blanks the matrix (default true)
   /app/brightness   1-100
+  /app/sleep        {"start": "23:00", "end": "07:00"}: local-time window with the matrix dark (brightness 0, no screen
+                    running); the window may span midnight.
+                    Or {"weekday": {...}, "weekend": {...}} with a window each (Sat/Sun are the weekend); a day with no
+                    window doesn't sleep. The window is chosen by the current day, even after midnight
   /app/screen       pin this screen by name; wins over the rotation
-  /app/schedule     {"default": "subway", "every": 900, "screens": ["weather", "markets"], "duration": 15}
-                    show `default`, and at every multiple of `every` seconds of wall-clock time (so :00, :15, :30,
-                    :45 for 900) show each of `screens` for `duration` seconds; wins over the rotation
+  /app/schedule     a list of rules, first match wins (so put the rarest on top): [{"screen": "weather", "at":
+                    "0 */15 * * * *", "for": 15}, ..., {"screen": "subway"}]. `at` is a cron expression (5 fields, or 6
+                    with leading seconds, local time); the screen shows for `for` seconds (default 60) from each firing.
+                    A rule without `at` always matches, so it is the fallback. Wins over the rotation
   /app/rotation     {"screens": ["subway", "weather"], "dwell": 20}   dwell is seconds per screen
   /app/screens/<name>/sources/<mount>   {param: value}, merged over that screen's source of that mount
 
@@ -19,6 +24,7 @@ import logging
 import os
 import time
 
+from .cron import Cron
 from .datamodel import DataModel
 from .resolver import ConfigError, Surface
 from .sources import StaticFileSource
@@ -42,6 +48,15 @@ def load_surface(screens_dir, name, overrides=None):
     return Surface.load(config)
 
 
+def _minutes(hhmm):
+    """Minutes since midnight for an "HH:MM" string."""
+    hour, minute = str(hhmm).split(":")
+    hour, minute = int(hour), int(minute)
+    if not (0 <= hour < 24 and 0 <= minute < 60):
+        raise ValueError(hhmm)
+    return hour * 60 + minute
+
+
 class App:
     def __init__(self, model, screens_dir="screens", live=False, clock=time.monotonic, wall=time.time):
         self.model = model
@@ -57,12 +72,13 @@ class App:
         self._failed = None         # signature that last failed to load, so it logs once
         self._index = 0
         self._since = None
+        self._crons = {}
 
     # ---- what should be showing ----
 
     def desired(self):
         """Name of the screen the model asks for, or None when powered off or nothing is configured."""
-        if self.model.get("/app/power", True) is False:
+        if self.model.get("/app/power", True) is False or self.asleep():
             return None
         pinned = self.model.get("/app/screen")
         if pinned:
@@ -85,23 +101,55 @@ class App:
         return names[self._index]
 
     def _scheduled(self):
-        """The screen `/app/schedule` asks for right now, or None when there is no (valid) schedule."""
-        schedule = self.model.get("/app/schedule")
-        if not isinstance(schedule, dict) or not schedule.get("default"):
+        """The first `/app/schedule` rule that matches right now, or None. Rules that don't parse are skipped."""
+        rules = self.model.get("/app/schedule")
+        if not isinstance(rules, list):
             return None
-        names = schedule.get("screens") or []
-        every, duration = schedule.get("every", 900), schedule.get("duration", 15)
-        if not names or not every or not duration or every <= 0 or duration <= 0:
-            return schedule["default"]
-        offset = self._wall() % every
-        slot = int(offset // duration)
-        return names[slot] if slot < len(names) else schedule["default"]
+        now = self._wall()
+        for rule in rules:
+            if not isinstance(rule, dict) or not rule.get("screen"):
+                continue
+            if not rule.get("at"):
+                return rule["screen"]
+            length = rule.get("for", 60)
+            if isinstance(length, bool) or not isinstance(length, (int, float)) or length <= 0:
+                continue
+            try:
+                if self._cron(rule["at"]).active(now, length):
+                    return rule["screen"]
+            except (ValueError, TypeError):
+                continue
+        return None
+
+    def _cron(self, expr):
+        if expr not in self._crons:
+            self._crons[expr] = Cron(expr)
+        return self._crons[expr]
+
+    def asleep(self):
+        """True while the local time is inside the `/app/sleep` window; a missing or malformed window never sleeps."""
+        window = self.model.get("/app/sleep")
+        now = time.localtime(self._wall())
+        if isinstance(window, dict) and ("weekday" in window or "weekend" in window):
+            window = window.get("weekend" if now.tm_wday >= 5 else "weekday")
+        if not isinstance(window, dict):
+            return False
+        try:
+            start, end = (_minutes(window[k]) for k in ("start", "end"))
+        except (KeyError, TypeError, ValueError):
+            return False
+        now = now.tm_hour * 60 + now.tm_min
+        if start == end:
+            return False
+        return start <= now < end if start < end else now >= start or now < end
 
     def overrides(self, name):
         value = self.model.get(f"/app/screens/{name}/sources")
         return value if isinstance(value, dict) else {}
 
     def brightness(self):
+        if self.asleep():
+            return 0
         value = self.model.get("/app/brightness")
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return None

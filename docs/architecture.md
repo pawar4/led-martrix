@@ -18,7 +18,8 @@ are unchanged. See [screen-config.md](screen-config.md#global-model) for the key
 
 ## Modules (`matrix_ui/`)
 
-- `app.py`: `App`, the global-model controller (screen choice, rotation, power, brightness, per-screen source overrides).
+- `cron.py`: `Cron`, the cron-expression matcher behind `/app/schedule` rules.
+- `app.py`: `App`, the global-model controller (screen choice, rotation, power, sleep window, brightness, per-screen source overrides).
 
 - `assistant.py`: `Assistant.ask(query)` asks Claude for a structured patch to the global model, applies it to a copy,
   validates it with `load_surface` (every screen it names, overrides merged), and writes the model file atomically;

@@ -1,15 +1,21 @@
 {
   "power": true,
   "brightness": 50,
-  "schedule": {
-    "default": "subway",
-    "every": 60,
-    "screens": [
-      "weather",
-      "markets"
-    ],
-    "duration": 10
-  },
+  "schedule": [
+    {
+      "screen": "weather",
+      "at": "0 */15 * * * *",
+      "for": 15
+    },
+    {
+      "screen": "markets",
+      "at": "15 */15 * * * *",
+      "for": 15
+    },
+    {
+      "screen": "subway"
+    }
+  ],
   "screens": {
     "markets": {
       "sources": {
@@ -19,6 +25,16 @@
           "label": "SPY"
         }
       }
+    }
+  },
+  "sleep": {
+    "weekday": {
+      "start": "23:30",
+      "end": "05:30"
+    },
+    "weekend": {
+      "start": "00:00",
+      "end": "08:00"
     }
   }
 }

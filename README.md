@@ -46,7 +46,7 @@ From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the ol
 | `serve.py`, `matrix_ui/assistant.py` | HTTP service that turns a plain-English request into a change to `matrix.json` (Claude + validation); for Home Assistant. See `docs/assistant.md` |
 | `deploy.sh` | Run from your laptop: syncs the repo to the Pi over SSH, removes the old `new_subway.py` `@reboot` cron entry and process, then runs `install.sh` there |
 | `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services, optional Home Assistant (`--with-homeassistant`) |
-| `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, per-screen source params |
+| `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, sleep window, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |
 | `docs/` | Documentation |

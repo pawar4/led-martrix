@@ -142,10 +142,35 @@ loaded from `matrix.json` and reloaded whenever the file changes:
 |---|---|
 | `power` | `false` blanks the matrix (default `true`) |
 | `brightness` | 1 to 100 |
+| `sleep` | `{"start": "23:00", "end": "07:00"}`: local-time window (may span midnight) in which the matrix is dark: brightness 0 and no screen or sources running; it wakes at `end`. Or `{"weekday": {"start": ..., "end": ...}, "weekend": {...}}` for separate windows (Saturday and Sunday are the weekend; a day with no window never sleeps), chosen by the current day, including after midnight. Wins over `screen` and `schedule`; a missing or malformed window is ignored |
 | `screen` | pin a screen by name (`screens/<name>.json`); wins over the rotation |
-| `schedule` | `{"default": "subway", "every": 900, "screens": ["weather", "markets"], "duration": 15}`: show `default`, and at every multiple of `every` seconds of wall-clock time (:00, :15, :30, :45 for 900) show each of `screens` for `duration` seconds in turn; wins over `rotation`, loses to `screen` |
+| `schedule` | list of rules, first match wins, see [Schedule](#schedule); wins over `rotation`, loses to `screen` and `sleep` |
 | `rotation` | `{"screens": ["subway", "weather"], "dwell": 20}`, seconds per screen (default 20) |
 | `screens.<name>.sources.<mount>` | params merged over that screen's source with the same `mount`, e.g. `{"symbol": "AAPL"}` |
+
+### Schedule
+
+```json
+"schedule": [
+  {"screen": "weather", "at": "0 */15 * * * *", "for": 15},
+  {"screen": "markets", "at": "15 */15 * * * *", "for": 15},
+  {"screen": "markets", "at": "* 9-16 * * 1-5"},
+  {"screen": "subway"}
+]
+```
+
+Rules are checked top to bottom and the first one that matches right now decides the screen, so put the rarest
+rules first and a rule without `at` last as the fallback. If nothing matches, `rotation` applies.
+
+- `screen`: the screen name.
+- `at`: a cron expression in the Pi's local time. Five fields (`min hour day-of-month month day-of-week`) or six
+  with leading seconds. Each field takes `*`, numbers, ranges (`9-16`), lists (`1,3`) and steps (`*/15`). Day of
+  week is 0 to 6 with 0 as Sunday. Omit `at` for a rule that always matches.
+- `for`: seconds the rule stays active from each firing (default 60). The example above shows weather for the
+  first 15 seconds of every quarter hour, markets for the next 15, markets all through weekday trading hours when
+  weather isn't up, and subway otherwise.
+
+A rule that can't be parsed (bad cron, non-positive `for`) is skipped.
 
 Overrides go through the normal source validation. An unknown screen, bad override, or unknown mount logs an
 error, sets `/status/error` and leaves the current screen running. `preview.py` still renders a single
