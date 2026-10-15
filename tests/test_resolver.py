@@ -115,7 +115,8 @@ def test_path_and_literal_bindings():
 
 def test_missing_path_falls_back_to_default():
     cfg = screen({"id": "t", "component": "Text", "text": {"path": "/nope"}}, root="t")
-    assert render(cfg)[1].texts[0][3] == ""
+    canvas, gfx = render(cfg)       # the widget's default is "", but a text still waiting for data shows a placeholder
+    assert gfx.texts == [] and canvas.pixels
 
 
 def test_bound_value_failing_validation_raises_strict_but_not_live(capsys):
@@ -350,3 +351,44 @@ def test_train_row_alert_dot():
         return render(cfg)[0].pixels.get((14, 25))
     assert dot("orange") == (255, 120, 0)
     assert dot("green") is None
+
+
+# ---- loading placeholders ----
+
+def _render_at(cfg, data, now):
+    surface = Surface.load(cfg)
+    canvas, gfx = FakeCanvas(), FakeGraphics()
+    surface.render(canvas, DataModel(data or {}), FONTS, gfx, now=lambda: now, strict=True)
+    return canvas, gfx
+
+
+def test_text_without_data_shimmers_and_then_shows_the_text():
+    cfg = screen({"id": "t", "component": "Text", "width": 40, "height": 8, "text": {"path": "/x"}}, root="t")
+    canvas, gfx = _render_at(cfg, {}, datetime(2026, 1, 1, 9, 5, 0))
+    assert gfx.texts == [] and canvas.pixels[(2, 2)][0] >= 30
+    # the highlight moves: the same pixel differs half a period later
+    later, _ = _render_at(cfg, {}, datetime(2026, 1, 1, 9, 5, 0, 400_000))
+    assert any(canvas.pixels.get(k) != later.pixels.get(k) for k in canvas.pixels)
+    _, gfx = _render_at(cfg, {"x": "hi"}, datetime(2026, 1, 1, 9, 5, 0))
+    assert [t[3] for t in gfx.texts] == ["hi"]
+
+
+def test_literal_text_never_shows_a_placeholder():
+    canvas, gfx = _render_at(screen({"id": "t", "component": "Text", "text": ""}, root="t"), {}, datetime(2026, 1, 1))
+    assert canvas.pixels == {}
+
+
+def test_train_row_draws_badge_and_shimmers_missing_lines():
+    cfg = screen({"id": "r", "component": "TrainRow", "route": "E", "height": 22,
+                  "name": {"path": "/n"}, "arrivals": {"path": "/a"}}, root="r")
+    canvas, gfx = _render_at(cfg, {}, datetime(2026, 1, 1))
+    assert gfx.texts[0][3] == "E" and all(t[3] not in ("No data", "?") for t in gfx.texts)
+    assert (18, 8) in canvas.pixels or any(x >= 18 for x, _ in canvas.pixels)
+    _, gfx = _render_at(cfg, {"n": "Court Sq", "a": []}, datetime(2026, 1, 1))
+    assert "No data" in [t[3] for t in gfx.texts]       # real, empty data still says so
+
+
+def test_weather_icon_waits_for_data():
+    cfg = screen({"id": "i", "component": "Icon", "weather_code": {"path": "/c"}}, root="i")
+    canvas, _ = _render_at(cfg, {}, datetime(2026, 1, 1))
+    assert canvas.pixels and all(v[0] == v[1] == v[2] for v in canvas.pixels.values())     # grey, not the ? glyph

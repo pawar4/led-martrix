@@ -38,3 +38,23 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 | `Image` | `path` (required) | A picture scaled down to fit its box (aspect ratio kept, centred), read once and cached. `path` is relative to where you run from. A missing or unreadable file draws nothing and is reported once |
 
 `TrainRow` expects roughly 22px of height: the name sits on the row's midline and arrivals 10px below.
+
+## Loading
+
+A widget whose main prop is bound to a path with no data yet (the source hasn't published, or the first fetch
+failed) draws a placeholder instead of an empty value: dark gray bars with a light band sweeping left to right
+every 1.6 seconds. It switches to the real value as soon as the data arrives. Literal props never show one, and
+real but empty data still reads as empty (`TrainRow` says "No data" for an empty `arrivals` list).
+
+| Widget | Waits on | Placeholder |
+|---|---|---|
+| `Text` | `text` | one bar, up to 24px wide, placed by `align` |
+| `Icon` | `weather_code` | an 8x8 block (an icon picked by `name` is drawn as normal) |
+| `TrainRow` | `name`, `arrivals` | the badge, arrow and dot draw as normal; the name and arrivals lines are bars |
+| `ForecastSlot` | `hour`, `weather_code`, `temp` | an icon block and two bars |
+| `LineChart` | `values` | a thin bar across the middle |
+| `ProgressBar` | `value` | a thin bar across the whole box |
+| `WrapText` | `text` | two bars, the second shorter |
+
+To give a new widget one, set `loading_props` on the class and override `render_loading` (the default draws one
+bar); use `draw_skeleton(ctx, x, y, w, h)` to draw the shimmer.

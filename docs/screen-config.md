@@ -101,7 +101,9 @@ Each prop is either:
 - a binding to the data model: `{"path": "/trains/E/name"}`
 - an explicit literal: `{"literal": "text"}`
 
-Paths are JSON-pointer style (`/a/b/0`). A path with no data uses the widget's default for that prop.
+Paths are JSON-pointer style (`/a/b/0`). A path with no data uses the widget's default for that prop, except
+that a widget showing data that hasn't arrived yet draws a shimmering gray placeholder instead (see
+[widgets](widgets.md#loading)), so a screen that starts before its sources have fetched doesn't show `?` or blanks.
 
 ## Placement props
 

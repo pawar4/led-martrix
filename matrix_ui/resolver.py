@@ -58,9 +58,19 @@ class RenderContext:
                 raise ConfigError(f"{node.id}: required prop '{name}' resolved to no value")
         return resolved
 
+    def missing_data(self, node):
+        """Names of props bound to a path that has no data yet (the source hasn't published)."""
+        return {name for name, value in node.props.items()
+                if _is_binding(value) and "path" in value and self.dm.get(value["path"]) is None}
+
     def render_node(self, node, rect):
         try:
-            node.widget.render(self, rect, self.resolve_props(node), node)
+            resolved = self.resolve_props(node)
+            waiting = self.missing_data(node) & set(node.widget.loading_props)
+            if waiting:
+                node.widget.render_loading(self, rect, resolved, node, waiting)
+            else:
+                node.widget.render(self, rect, resolved, node)
         except ConfigError as e:
             if self.strict:
                 raise

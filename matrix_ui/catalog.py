@@ -117,9 +117,14 @@ class Widget:
     props = {}
     required = ()
     container = False
+    loading_props = ()      # props that, bound to a path with no data yet, make the widget draw render_loading
 
     def render(self, ctx, rect, p, node):
         raise NotImplementedError
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        """Placeholder while `waiting` (a subset of loading_props) has no data. Default: one shimmering bar."""
+        draw_skeleton(ctx, rect.x, rect.y + max(rect.h - 4, 0) // 2, rect.w, min(rect.h, 4))
 
 
 def register(name):
@@ -140,6 +145,18 @@ def fit_text(font, text, max_width):
     while text and text_width(font, text) > max_width:
         text = text[:-1]
     return text
+
+
+SKELETON_BASE, SKELETON_LIFT, SKELETON_PERIOD = 30, 50, 1.6
+
+
+def draw_skeleton(ctx, x, y, w, h):
+    """Loading placeholder: a dark bar with a light band sweeping left to right every 1.6 seconds."""
+    centre = (ctx.now().timestamp() % SKELETON_PERIOD) / SKELETON_PERIOD * (w + 16) - 8
+    for col in range(max(w, 0)):
+        level = SKELETON_BASE + int(max(0, 1 - abs(col - centre) / 8) * SKELETON_LIFT)
+        for row in range(max(h, 0)):
+            ctx.canvas.SetPixel(x + col, y + row, level, level, level)
 
 
 def draw_text(ctx, x, baseline_y, text, color, font_name):
@@ -262,9 +279,15 @@ class Text(Widget):
         "font": (v_oneof(*FONT_NAMES), "small"),
         "align": (v_oneof("left", "center", "right"), "left"),
     }
+    loading_props = ("text",)
 
     def render(self, ctx, rect, p, node):
         draw_aligned_text(ctx, rect, p["text"], p["color"], p["font"], p["align"])
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        width = min(rect.w, 24)
+        x = rect.x + {"left": 0, "center": (rect.w - width) // 2, "right": rect.w - width}[p["align"]]
+        draw_skeleton(ctx, x, rect.y + max(ctx.fonts[p["font"]].height - 4, 0) // 2, width, 4)
 
 
 @register("Clock")
@@ -284,6 +307,7 @@ class Clock(Widget):
 class Icon(Widget):
     """10x10 pixel-art icon, picked by `name` or derived from an Open-Meteo `weather_code`."""
     props = {"name": (v_oneof(*ICONS), None), "weather_code": (v_int, None)}
+    loading_props = ("weather_code",)
 
     def render(self, ctx, rect, p, node):
         if p["name"] is not None:
@@ -293,6 +317,11 @@ class Icon(Widget):
         else:
             icon = UNKNOWN
         draw_icon(ctx.canvas, icon, rect.x, rect.y)
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        if p["name"] is not None:       # a fixed icon doesn't depend on the data
+            return self.render(ctx, rect, p, node)
+        draw_skeleton(ctx, rect.x + 1, rect.y + 1, 8, 8)
 
 
 @register("Divider")
@@ -337,14 +366,25 @@ class TrainRow(Widget):
     props = {"route": (v_text, None), "name": (v_text, ""), "arrivals": (v_int_list, []),
              "direction": (v_oneof("N", "S", ""), ""), "alert": (v_color, None)}
     required = ("route",)
+    loading_props = ("name", "arrivals")
 
     def render(self, ctx, rect, p, node):
+        self.draw(ctx, rect, p, set())
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        self.draw(ctx, rect, p, waiting)
+
+    def draw(self, ctx, rect, p, waiting):
+        """The badge, arrow and dot always draw; the name and arrivals lines shimmer while their data is missing."""
         mid = rect.y + rect.h // 2
         draw_badge(ctx, Rect(rect.x, rect.y, 16, rect.h), p["route"],
                    ROUTE_COLORS.get(p["route"], COLORS["dim"]), 6)
         font = ctx.fonts["small"]
         text_w = rect.w - 18
-        draw_text(ctx, rect.x + 18, mid, fit_text(font, p["name"], text_w), COLORS["white"], "small")
+        if "name" in waiting:
+            draw_skeleton(ctx, rect.x + 18, mid - 6, min(text_w, 30), 4)
+        else:
+            draw_text(ctx, rect.x + 18, mid, fit_text(font, p["name"], text_w), COLORS["white"], "small")
         if p["alert"] not in (None, COLORS["green"]):
             for dx in range(3):
                 for dy in range(3):
@@ -353,6 +393,9 @@ class TrainRow(Widget):
             up = p["direction"] == "N"
             draw_arrow(ctx.canvas, rect.x + 6, mid - 10 if up else mid + 8, up, COLORS["cyan"])
         arrivals = p["arrivals"]
+        if "arrivals" in waiting:
+            draw_skeleton(ctx, rect.x + 18, mid + 4, min(text_w, 40), 4)
+            return
         if arrivals:
             color = COLORS["yellow"] if arrivals[0] <= 2 else COLORS["white"]
             line = fit_text(font, format_arrivals(arrivals, font, text_w), text_w)
@@ -366,6 +409,13 @@ class ForecastSlot(Widget):
     """One forecast step: weather icon, hour label (tiny) and temperature. Fits a 32x14 box or taller."""
     props = {"hour": (v_text, ""), "weather_code": (v_int, None), "temp": (v_text, ""),
              "hour_color": (v_color, COLORS["dim"]), "temp_color": (v_color, COLORS["white"])}
+    loading_props = ("hour", "weather_code", "temp")
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        draw_skeleton(ctx, rect.x + 1, rect.y + (rect.h - 10) // 2 + 1, 8, 8)
+        top = rect.y + max((rect.h - 14) // 2, 0)
+        draw_skeleton(ctx, rect.x + 12, top + 1, 10, 3)
+        draw_skeleton(ctx, rect.x + 12, top + 7, 16, 5)
 
     def render(self, ctx, rect, p, node):
         icon = get_icon_for_code(p["weather_code"]) if p["weather_code"] is not None else UNKNOWN
@@ -384,6 +434,10 @@ class LineChart(Widget):
     line and included in the scale."""
     props = {"values": (v_number_list, []), "color": (v_color, COLORS["green"]), "fill": (v_color, None),
              "baseline": (v_number, None), "baseline_color": (v_color, (60, 60, 60))}
+    loading_props = ("values",)
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        draw_skeleton(ctx, rect.x, rect.y + (rect.h - 2) // 2, rect.w, 2)
 
     def render(self, ctx, rect, p, node):
         values, baseline = p["values"], p["baseline"]
@@ -433,6 +487,7 @@ class Fill(Widget):
 class ProgressBar(Widget):
     """Horizontal bar filled left to right by `value` (0 to 1), drawn over an optional `track` colour."""
     props = {"value": (v_number, 0), "color": (v_color, COLORS["green"]), "track": (v_color, None)}
+    loading_props = ("value",)
 
     def render(self, ctx, rect, p, node):
         filled = round(min(max(p["value"], 0), 1) * rect.w)
@@ -456,6 +511,14 @@ class WrapText(Widget):
         "line_gap": (v_int, 1),
         "scroll": (v_number, 0),
     }
+    loading_props = ("text",)
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        font = ctx.fonts[p["font"]]
+        pitch = font.height + p["line_gap"]
+        for i, share in enumerate((1, 0.6)):        # two lines of placeholder, the second shorter
+            if (i + 1) * pitch <= rect.h:
+                draw_skeleton(ctx, rect.x, rect.y + i * pitch + max(font.height - 4, 0) // 2, int(rect.w * share), 4)
 
     def render(self, ctx, rect, p, node):
         font = ctx.fonts[p["font"]]
