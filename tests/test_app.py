@@ -4,7 +4,7 @@ from matrix_ui import App, DataModel
 
 
 def make_app(tmp_path, model, clock=lambda: 0):
-    for name in ("a", "b"):
+    for name in ("a", "b", "c"):
         (tmp_path / f"{name}.json").write_text(json.dumps({
             "root": "r", "components": [{"id": "r", "component": "Text", "text": name}],
             "sources": [{"type": "http_json", "mount": "/x", "url": "http://127.0.0.1:9/", "interval": 3600}],
@@ -34,6 +34,20 @@ def test_rotation_advances_after_dwell(tmp_path):
     t[0] = 20
     app.update()
     assert app.active == "a"
+
+
+def test_schedule_interleaves_screens_on_wall_clock(tmp_path):
+    t = [0]
+    m = DataModel({"app": {"schedule": {"default": "a", "every": 900, "screens": ["b", "c"], "duration": 15},
+                           "rotation": {"screens": ["a"], "dwell": 5}}})
+    app = make_app(tmp_path, m)
+    app._wall = lambda: t[0]
+    assert [_at(app, t, x) for x in (0, 14, 15, 29, 30, 899, 900, 915)] == ["b", "b", "c", "c", "a", "a", "b", "c"]
+
+
+def _at(app, t, now):
+    t[0] = now
+    return app.desired()
 
 
 def test_power_off_stops_screen(tmp_path):

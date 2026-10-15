@@ -134,6 +134,7 @@ loaded from `matrix.json` and reloaded whenever the file changes:
 | `power` | `false` blanks the matrix (default `true`) |
 | `brightness` | 1 to 100 |
 | `screen` | pin a screen by name (`screens/<name>.json`); wins over the rotation |
+| `schedule` | `{"default": "subway", "every": 900, "screens": ["weather", "markets"], "duration": 15}`: show `default`, and at every multiple of `every` seconds of wall-clock time (:00, :15, :30, :45 for 900) show each of `screens` for `duration` seconds in turn; wins over `rotation`, loses to `screen` |
 | `rotation` | `{"screens": ["subway", "weather"], "dwell": 20}`, seconds per screen (default 20) |
 | `screens.<name>.sources.<mount>` | params merged over that screen's source with the same `mount`, e.g. `{"symbol": "AAPL"}` |
 

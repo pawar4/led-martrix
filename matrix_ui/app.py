@@ -5,6 +5,9 @@ Model layout (`/app` is the control state, loaded from a JSON file and reloaded 
   /app/power        false blanks the matrix (default true)
   /app/brightness   1-100
   /app/screen       pin this screen by name; wins over the rotation
+  /app/schedule     {"default": "subway", "every": 900, "screens": ["weather", "markets"], "duration": 15}
+                    show `default`, and at every multiple of `every` seconds of wall-clock time (so :00, :15, :30,
+                    :45 for 900) show each of `screens` for `duration` seconds; wins over the rotation
   /app/rotation     {"screens": ["subway", "weather"], "dwell": 20}   dwell is seconds per screen
   /app/screens/<name>/sources/<mount>   {param: value}, merged over that screen's source of that mount
 
@@ -40,11 +43,12 @@ def load_surface(screens_dir, name, overrides=None):
 
 
 class App:
-    def __init__(self, model, screens_dir="screens", live=False, clock=time.monotonic):
+    def __init__(self, model, screens_dir="screens", live=False, clock=time.monotonic, wall=time.time):
         self.model = model
         self.screens_dir = screens_dir
         self.live = live
         self._clock = clock
+        self._wall = wall
         self.active = None          # name of the running screen
         self._surface = None
         self._screen_dm = None
@@ -64,6 +68,10 @@ class App:
         if pinned:
             self._since = None      # restart the rotation when the pin is lifted
             return pinned
+        scheduled = self._scheduled()
+        if scheduled:
+            self._since = None
+            return scheduled
         rotation = self.model.get("/app/rotation") or {}
         names = rotation.get("screens") or []
         if not names:
@@ -75,6 +83,19 @@ class App:
         elif now - self._since >= dwell:
             self._index, self._since = (self._index + 1) % len(names), now
         return names[self._index]
+
+    def _scheduled(self):
+        """The screen `/app/schedule` asks for right now, or None when there is no (valid) schedule."""
+        schedule = self.model.get("/app/schedule")
+        if not isinstance(schedule, dict) or not schedule.get("default"):
+            return None
+        names = schedule.get("screens") or []
+        every, duration = schedule.get("every", 900), schedule.get("duration", 15)
+        if not names or not every or not duration or every <= 0 or duration <= 0:
+            return schedule["default"]
+        offset = self._wall() % every
+        slot = int(offset // duration)
+        return names[slot] if slot < len(names) else schedule["default"]
 
     def overrides(self, name):
         value = self.model.get(f"/app/screens/{name}/sources")

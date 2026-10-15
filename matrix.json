@@ -1,13 +1,14 @@
 {
   "power": true,
   "brightness": 100,
-  "rotation": {
+  "schedule": {
+    "default": "subway",
+    "every": 900,
     "screens": [
-      "subway",
       "weather",
       "markets"
     ],
-    "dwell": 20
+    "duration": 15
   },
   "screens": {
     "markets": {
@@ -19,6 +20,5 @@
         }
       }
     }
-  },
-  "screen": "markets"
+  }
 }
