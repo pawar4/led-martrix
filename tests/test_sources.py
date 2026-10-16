@@ -134,19 +134,31 @@ def test_resolve_day_and_hour_label():
     assert [hour_label(h) for h in (0, 3, 12, 15, 21)] == ["12am", "3am", "12pm", "3pm", "9pm"]
 
 
+def test_fetch_weather_reports_day_or_night(monkeypatch):
+    import io
+    import json as _json
+    from matrix_ui import providers
+    for is_day in (1, 0):
+        body = {"current": {"temperature_2m": 61.7, "weather_code": 0, "is_day": is_day}}
+        monkeypatch.setattr(providers.urllib.request, "urlopen",
+                            lambda url, timeout, body=body: io.StringIO(_json.dumps(body)))
+        assert providers.fetch_weather(1, 2) == {"code": 0, "is_day": bool(is_day), "temp_label": "61F"}
+
+
 def test_fetch_forecast_samples_every_step(monkeypatch):
     import io
     import json as _json
     from matrix_ui import providers
-    hourly = {"temperature_2m": [h + 0.4 for h in range(24)], "weather_code": list(range(24))}
+    hourly = {"temperature_2m": [h + 0.4 for h in range(24)], "weather_code": list(range(24)),
+              "is_day": [int(7 <= h < 19) for h in range(24)]}
     monkeypatch.setattr(providers.urllib.request, "urlopen",
                         lambda url, timeout: io.StringIO(_json.dumps({"hourly": hourly})))
     out = providers.fetch_forecast(1, 2, "2026-10-17", step_hours=6, start_hour=0, end_hour=23)
     assert out["date_label"] == "Sat Oct 17"
-    assert out["slots"] == [{"hour": "12am", "code": 0, "temp_label": "0F"},
-                            {"hour": "6am", "code": 6, "temp_label": "6F"},
-                            {"hour": "12pm", "code": 12, "temp_label": "12F"},
-                            {"hour": "6pm", "code": 18, "temp_label": "18F"}]
+    assert out["slots"] == [{"hour": "12am", "code": 0, "is_day": False, "temp_label": "0F"},
+                            {"hour": "6am", "code": 6, "is_day": False, "temp_label": "6F"},
+                            {"hour": "12pm", "code": 12, "is_day": True, "temp_label": "12F"},
+                            {"hour": "6pm", "code": 18, "is_day": True, "temp_label": "18F"}]
     default = providers.fetch_forecast(1, 2, "2026-10-17")      # 6am to 10pm every 3 hours
     assert [s["hour"] for s in default["slots"]] == ["6am", "9am", "12pm", "3pm", "6pm", "9pm"]
 
@@ -411,11 +423,13 @@ def test_fetch_forecast_now_is_a_rolling_window(monkeypatch):
     start = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     times = [(start + timedelta(hours=i)).strftime("%Y-%m-%dT%H:00") for i in range(96)]
     body = {"utc_offset_seconds": -4 * 3600,
-            "hourly": {"time": times, "temperature_2m": list(range(96)), "weather_code": list(range(96))}}
+            "hourly": {"time": times, "temperature_2m": list(range(96)), "weather_code": list(range(96)),
+                       "is_day": [i % 2 for i in range(96)]}}
     monkeypatch.setattr(providers.urllib.request, "urlopen", lambda url, timeout: io.StringIO(_json.dumps(body)))
     out = providers.fetch_forecast(1, 2, "now")
     first = times.index(now.strftime("%Y-%m-%dT%H:00"))
     assert [s["code"] for s in out["slots"]] == [first + 3 * i for i in range(6)]
+    assert [s["is_day"] for s in out["slots"]] == [bool((first + 3 * i) % 2) for i in range(6)]
     assert [s["hour"] for s in out["slots"]] == [providers.hour_label((now.hour + 3 * i) % 24) for i in range(6)]
 
 

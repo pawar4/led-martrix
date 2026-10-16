@@ -1,7 +1,8 @@
 {
   "weather": {
     "code": 1,
-    "temp_label": "72F"
+    "temp_label": "72F",
+    "is_day": true
   },
   "trains": {
     "E": {

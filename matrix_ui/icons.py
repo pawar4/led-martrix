@@ -4,16 +4,29 @@
 _ = None
 
 SUN = [
-    [_,_,_,'Y',_,_,'Y',_,_,_],
+    [_,_,_,_,'Y','Y',_,_,_,_],
     [_,'Y',_,_,_,_,_,_,'Y',_],
-    [_,_,'Y','Y','Y','Y',_,_,_,_],
-    ['Y',_,'Y','Y','Y','Y',_,'Y',_,_],
-    [_,_,'Y','Y','Y','Y',_,_,_,_],
-    [_,_,'Y','Y','Y','Y',_,_,_,_],
-    ['Y',_,'Y','Y','Y','Y',_,'Y',_,_],
-    [_,_,'Y','Y','Y','Y',_,_,_,_],
+    [_,_,_,'Y','Y','Y','Y',_,_,_],
+    [_,_,'Y','Y','Y','Y','Y','Y',_,_],
+    ['Y',_,'Y','Y','Y','Y','Y','Y',_,'Y'],
+    ['Y',_,'Y','Y','Y','Y','Y','Y',_,'Y'],
+    [_,_,'Y','Y','Y','Y','Y','Y',_,_],
+    [_,_,_,'Y','Y','Y','Y',_,_,_],
     [_,'Y',_,_,_,_,_,_,'Y',_],
-    [_,_,_,'Y',_,_,'Y',_,_,_],
+    [_,_,_,_,'Y','Y',_,_,_,_],
+]
+
+MOON = [
+    [_,_,_,'W','W',_,_,_,_,_],
+    [_,_,'W','W',_,_,_,_,_,_],
+    [_,'W','W','W',_,_,_,_,_,_],
+    ['W','W','W','W',_,_,_,'W',_,_],
+    ['W','W','W','W',_,_,_,_,_,_],
+    ['W','W','W','W',_,_,_,_,_,_],
+    ['W','W','W','W','W',_,_,_,_,_],
+    [_,'W','W','W','W','W','W','W','W',_],
+    [_,_,'W','W','W','W','W','W',_,_],
+    [_,_,_,'W','W','W','W',_,_,_],
 ]
 
 CLOUD = [
@@ -107,6 +120,19 @@ PARTLY_CLOUDY = [
     [_,_,_,_,_,_,_,_,_,_],
 ]
 
+PARTLY_CLOUDY_NIGHT = [
+    [_,_,'W','W','W',_,_,_,_,_],
+    [_,'W','W','W',_,_,_,_,_,_],
+    ['W','W','W',_,_,_,'W',_,_,_],
+    ['W','W','W',_,_,_,_,_,_,_],
+    ['W','W','W',_,_,'W','W',_,_,_],
+    [_,'W','W','W','W','W','W','W','W',_],
+    [_,_,'W','W','W','W','W','W','W','W'],
+    [_,_,_,'G','G','G','G','G','G',_],
+    [_,_,_,_,_,_,_,_,_,_],
+    [_,_,_,_,_,_,_,_,_,_],
+]
+
 PALETTE = {
     'Y': (255, 220, 0),
     'W': (220, 220, 220),
@@ -116,8 +142,14 @@ PALETTE = {
 }
 
 
-def get_icon_for_code(weather_code):
-    if weather_code == 0:
+def get_icon_for_code(weather_code, is_day=True):
+    """Icon for an Open-Meteo weather code. At night a clear sky shows the moon and a mainly clear one the moon
+    behind a cloud."""
+    if weather_code == 0 and not is_day:
+        return MOON
+    elif weather_code == 1 and not is_day:
+        return PARTLY_CLOUDY_NIGHT
+    elif weather_code == 0:
         return SUN
     elif weather_code == 1:
         return PARTLY_CLOUDY
@@ -137,7 +169,8 @@ def get_icon_for_code(weather_code):
 
 ICONS = {
     "sun": SUN, "cloud": CLOUD, "rain": RAIN, "snow": SNOW, "storm": STORM,
-    "fog": FOG, "unknown": UNKNOWN, "partly_cloudy": PARTLY_CLOUDY,
+    "fog": FOG, "unknown": UNKNOWN, "partly_cloudy": PARTLY_CLOUDY, "moon": MOON,
+    "partly_cloudy_night": PARTLY_CLOUDY_NIGHT,
 }
 
 

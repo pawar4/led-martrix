@@ -22,11 +22,11 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 |---|---|---|
 | `Text` | `text`, `color` (white), `font` (small), `align` (left/center/right) | Trimmed to its box |
 | `Clock` | `format` (`%H:%M`), `color`, `font`, `align` | strftime format, current time |
-| `Icon` | `name` or `weather_code` | 10x10 pixel art; `weather_code` is an Open-Meteo code |
+| `Icon` | `name` or `weather_code`, `is_day` (true) | 10x10 pixel art; `name` is one of `sun`, `moon`, `partly_cloudy`, `partly_cloudy_night`, `cloud`, `fog`, `rain`, `snow`, `storm`, `unknown`; `weather_code` is an Open-Meteo code, and with `is_day` false code 0 (clear) shows the moon and code 1 (mainly clear) the moon behind a cloud |
 | `Divider` | `color`, `orientation` (horizontal/vertical) | A one-pixel line through the middle of its box |
 | `TrainBadge` | `route` (required), `color`, `radius` (6) | Coloured circle with the route letter; colour defaults to the MTA route colour |
 | `TrainRow` | `route` (required), `name`, `arrivals` (list of minutes), `direction` (`N`, `S` or empty), `alert` (colour) | Badge, station name, next arrivals; `direction` draws a cyan arrow in the badge column: up (`N`, uptown) above the badge, down (`S`, downtown) below it; `alert` draws a 3px status dot at the badge's top-right corner (nothing when green, so bind it to an `mta_alerts` colour); yellow when the first is 2 min or less, "No data" when empty |
-| `ForecastSlot` | `hour`, `weather_code`, `temp`, `hour_color` (dim), `temp_color` (white) | Weather icon, hour label and temperature; sized for a 32x14 box or taller (two per row) |
+| `ForecastSlot` | `hour`, `weather_code`, `is_day` (true), `temp`, `hour_color` (dim), `temp_color` (white) | Weather icon (moon icons for clear and mainly clear skies when `is_day` is false), hour label and temperature; sized for a 32x14 box or taller (two per row) |
 | `LineChart` | `values` (list of numbers), `color` (green), `fill`, `baseline`, `baseline_color` (dim grey), `dividers` (list of indexes into `values`), `divider_color` (dim grey) | Line stretched across the box, min at the bottom and max at the top; `fill` shades under the line; `baseline` is a dashed line included in the scale; each `dividers` index gets a 1px full-height column behind the line (e.g. a day split) |
 
 | `Fill` | `color` (black) | Solid rectangle; first child of a `Stack` makes a background |

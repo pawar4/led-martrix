@@ -37,8 +37,8 @@ writes into the data model under its own `mount` path, and the component binding
 |---|---|---|
 | `file` | `path*`, `interval` (0.5) | the JSON file's contents; reloaded when it changes |
 | `http_json` | `url*`, `headers`, `interval` (30) | the response body |
-| `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, temp_label}` (Open-Meteo) |
-| `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `count` (6), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, temp_label}]}` (Open-Meteo) |
+| `weather` | `lat*`, `lon*`, `units` (`fahrenheit`), `interval` (600) | `{code, is_day, temp_label}` (Open-Meteo; bind `is_day` to an `Icon` to show the moon at night) |
+| `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `count` (6), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, is_day, temp_label}]}` (Open-Meteo; bind a slot's `is_day` to a `ForecastSlot`) |
 | `mta_alerts` | `routes*` (list, e.g. `["E", "7"]`), `interval` (120) | `{route: {label, color, headline, rank}, headline, count}`: the worst active alert per route (`All clear` green, `Svc change` yellow, `Delays` orange, `Suspended` red) and the worst alert's first sentence (MTA alerts feed, no key) |
 | `daylight` | `lat*`, `lon*`, `interval` (60) | `{phase, color, progress, next_label, sunrise_label, sunset_label}`: `phase` is `day` or `night`, `progress` (0-1) how far through it, `color` yellow (day) or blue (night); sun times come from Open-Meteo (fetched a few times a day), the rest is computed each poll |
 | `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values, dividers}` (Yahoo Finance, no key) |

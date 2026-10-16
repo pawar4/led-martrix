@@ -59,6 +59,12 @@ def v_int(v):
     return v
 
 
+def v_bool(v):
+    if not isinstance(v, bool):
+        raise ValueError(f"expected true or false, got {v!r}")
+    return v
+
+
 def v_color(v):
     if isinstance(v, str) and v in COLORS:
         return COLORS[v]
@@ -305,15 +311,16 @@ class Clock(Widget):
 
 @register("Icon")
 class Icon(Widget):
-    """10x10 pixel-art icon, picked by `name` or derived from an Open-Meteo `weather_code`."""
-    props = {"name": (v_oneof(*ICONS), None), "weather_code": (v_int, None)}
+    """10x10 pixel-art icon, picked by `name` or derived from an Open-Meteo `weather_code` (`is_day` false
+    shows the moon icons for clear and mainly clear skies)."""
+    props = {"name": (v_oneof(*ICONS), None), "weather_code": (v_int, None), "is_day": (v_bool, True)}
     loading_props = ("weather_code",)
 
     def render(self, ctx, rect, p, node):
         if p["name"] is not None:
             icon = ICONS[p["name"]]
         elif p["weather_code"] is not None:
-            icon = get_icon_for_code(p["weather_code"])
+            icon = get_icon_for_code(p["weather_code"], p["is_day"])
         else:
             icon = UNKNOWN
         draw_icon(ctx.canvas, icon, rect.x, rect.y)
@@ -407,7 +414,7 @@ class TrainRow(Widget):
 @register("ForecastSlot")
 class ForecastSlot(Widget):
     """One forecast step: weather icon, hour label (tiny) and temperature. Fits a 32x14 box or taller."""
-    props = {"hour": (v_text, ""), "weather_code": (v_int, None), "temp": (v_text, ""),
+    props = {"hour": (v_text, ""), "weather_code": (v_int, None), "is_day": (v_bool, True), "temp": (v_text, ""),
              "hour_color": (v_color, COLORS["dim"]), "temp_color": (v_color, COLORS["white"])}
     loading_props = ("hour", "weather_code", "temp")
 
@@ -418,7 +425,7 @@ class ForecastSlot(Widget):
         draw_skeleton(ctx, rect.x + 12, top + 7, 16, 5)
 
     def render(self, ctx, rect, p, node):
-        icon = get_icon_for_code(p["weather_code"]) if p["weather_code"] is not None else UNKNOWN
+        icon = get_icon_for_code(p["weather_code"], p["is_day"]) if p["weather_code"] is not None else UNKNOWN
         draw_icon(ctx.canvas, icon, rect.x, rect.y + (rect.h - 10) // 2)
         top = rect.y + max((rect.h - 14) // 2, 0)        # hour (6px) + temperature (8px), centred
         text_rect = Rect(rect.x + 12, top, max(rect.w - 12, 0), 14)

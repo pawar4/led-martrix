@@ -388,6 +388,27 @@ def test_train_row_draws_badge_and_shimmers_missing_lines():
     assert "No data" in [t[3] for t in gfx.texts]       # real, empty data still says so
 
 
+def test_night_swaps_sun_for_moon():
+    from matrix_ui.icons import MOON, PARTLY_CLOUDY, PARTLY_CLOUDY_NIGHT, SUN, get_icon_for_code
+    assert get_icon_for_code(0) is SUN and get_icon_for_code(0, True) is SUN
+    assert get_icon_for_code(0, False) is MOON
+    assert get_icon_for_code(1, True) is PARTLY_CLOUDY and get_icon_for_code(1, False) is PARTLY_CLOUDY_NIGHT
+    assert get_icon_for_code(61, False) is get_icon_for_code(61, True)      # rain looks the same at night
+
+
+def test_icon_is_day_binding_picks_moon():
+    from matrix_ui.icons import MOON, SUN
+    cfg = screen({"id": "i", "component": "Icon", "weather_code": {"path": "/c"}, "is_day": {"path": "/d"}}, root="i")
+
+    def drawn(data):
+        canvas, _ = _render_at(cfg, data, datetime(2026, 1, 1))
+        return {xy for xy, _ in canvas.pixels.items()}
+    cells = lambda icon: {(x, y) for y, row in enumerate(icon) for x, c in enumerate(row) if c}
+    assert drawn({"c": 0, "d": False}) == cells(MOON)
+    assert drawn({"c": 0, "d": True}) == cells(SUN)
+    assert drawn({"c": 0}) == cells(SUN)             # no is_day yet: assume day
+
+
 def test_weather_icon_waits_for_data():
     cfg = screen({"id": "i", "component": "Icon", "weather_code": {"path": "/c"}}, root="i")
     canvas, _ = _render_at(cfg, {}, datetime(2026, 1, 1))

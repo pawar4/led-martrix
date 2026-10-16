@@ -61,7 +61,10 @@
         "path": "/forecast/slots/0/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/0/is_day"
+      }
     },
     {
       "id": "s1",
@@ -77,7 +80,10 @@
         "path": "/forecast/slots/1/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/1/is_day"
+      }
     },
     {
       "id": "r1",
@@ -102,7 +108,10 @@
         "path": "/forecast/slots/2/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/2/is_day"
+      }
     },
     {
       "id": "s3",
@@ -118,7 +127,10 @@
         "path": "/forecast/slots/3/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/3/is_day"
+      }
     },
     {
       "id": "r2",
@@ -143,7 +155,10 @@
         "path": "/forecast/slots/4/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/4/is_day"
+      }
     },
     {
       "id": "s5",
@@ -159,7 +174,10 @@
         "path": "/forecast/slots/5/temp_label"
       },
       "hour_color": "cyan",
-      "temp_color": "yellow"
+      "temp_color": "yellow",
+      "is_day": {
+        "path": "/forecast/slots/5/is_day"
+      }
     }
   ],
   "sources": [

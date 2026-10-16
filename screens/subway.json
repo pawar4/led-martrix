@@ -32,6 +32,9 @@
       "width": 12,
       "weather_code": {
         "path": "/weather/code"
+      },
+      "is_day": {
+        "path": "/weather/is_day"
       }
     },
     {

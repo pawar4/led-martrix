@@ -16,13 +16,14 @@ log = logging.getLogger(__name__)
 def fetch_weather(lat, lon, units="fahrenheit", timeout=10):
     qs = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
-        "current": "temperature_2m,weather_code",
+        "current": "temperature_2m,weather_code,is_day",
         "temperature_unit": units,
         "timezone": "auto",
     })
     with urllib.request.urlopen(f"https://api.open-meteo.com/v1/forecast?{qs}", timeout=timeout) as r:
         cur = json.load(r)["current"]
-    return {"code": cur["weather_code"], "temp_label": f"{int(cur['temperature_2m'])}{units[0].upper()}"}
+    return {"code": cur["weather_code"], "is_day": bool(cur["is_day"]),
+            "temp_label": f"{int(cur['temperature_2m'])}{units[0].upper()}"}
 
 
 def resolve_day(day, today=None):
@@ -49,7 +50,7 @@ def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", star
     last = d + timedelta(days=1) if rolling else d
     qs = urllib.parse.urlencode({
         "latitude": lat, "longitude": lon,
-        "hourly": "temperature_2m,weather_code",
+        "hourly": "temperature_2m,weather_code,is_day",
         "temperature_unit": units,
         "timezone": "auto",
         "start_date": (d - timedelta(days=1)).isoformat() if rolling else d.isoformat(),
@@ -67,7 +68,7 @@ def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", star
         hours = [(local.hour + i * step_hours) % 24 for i in range(count)]
     else:
         indexes = hours = list(range(start_hour, end_hour + 1, step_hours))
-    slots = [{"hour": hour_label(h), "code": hourly["weather_code"][i],
+    slots = [{"hour": hour_label(h), "code": hourly["weather_code"][i], "is_day": bool(hourly["is_day"][i]),
               "temp_label": f"{round(hourly['temperature_2m'][i])}{units[0].upper()}"}
              for i, h in zip(indexes, hours)]
     return {"date_label": d.strftime("%a %b %d"), "slots": slots}
