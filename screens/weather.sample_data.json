@@ -5,38 +5,44 @@
       {
         "hour": "6am",
         "code": 1,
-        "temp_label": "56F",
-        "is_day": false
+        "temp_label": "38F",
+        "is_day": false,
+        "temp_color": "blue"
       },
       {
         "hour": "9am",
         "code": 0,
         "temp_label": "62F",
-        "is_day": true
+        "is_day": true,
+        "temp_color": "yellow"
       },
       {
         "hour": "12pm",
         "code": 2,
-        "temp_label": "68F",
-        "is_day": true
+        "temp_label": "86F",
+        "is_day": true,
+        "temp_color": "red"
       },
       {
         "hour": "3pm",
         "code": 61,
         "temp_label": "70F",
-        "is_day": true
+        "is_day": true,
+        "temp_color": "yellow"
       },
       {
         "hour": "6pm",
         "code": 3,
         "temp_label": "64F",
-        "is_day": true
+        "is_day": true,
+        "temp_color": "yellow"
       },
       {
         "hour": "9pm",
         "code": 0,
         "temp_label": "60F",
-        "is_day": false
+        "is_day": false,
+        "temp_color": "yellow"
       }
     ]
   },

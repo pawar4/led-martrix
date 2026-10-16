@@ -134,6 +134,14 @@ def test_resolve_day_and_hour_label():
     assert [hour_label(h) for h in (0, 3, 12, 15, 21)] == ["12am", "3am", "12pm", "3pm", "9pm"]
 
 
+def test_temp_color_bands():
+    from matrix_ui.providers import temp_color
+    assert [temp_color(t) for t in (-5, 40, 41, 62, 84, 85, 100)] == [
+        "blue", "blue", "yellow", "yellow", "yellow", "red", "red"]
+    assert [temp_color(t, "celsius") for t in (-5, 4, 5, 20, 28, 29, 40)] == [
+        "blue", "blue", "yellow", "yellow", "yellow", "red", "red"]
+
+
 def test_fetch_weather_reports_day_or_night(monkeypatch):
     import io
     import json as _json
@@ -155,10 +163,10 @@ def test_fetch_forecast_samples_every_step(monkeypatch):
                         lambda url, timeout: io.StringIO(_json.dumps({"hourly": hourly})))
     out = providers.fetch_forecast(1, 2, "2026-10-17", step_hours=6, start_hour=0, end_hour=23)
     assert out["date_label"] == "Sat Oct 17"
-    assert out["slots"] == [{"hour": "12am", "code": 0, "is_day": False, "temp_label": "0F"},
-                            {"hour": "6am", "code": 6, "is_day": False, "temp_label": "6F"},
-                            {"hour": "12pm", "code": 12, "is_day": True, "temp_label": "12F"},
-                            {"hour": "6pm", "code": 18, "is_day": True, "temp_label": "18F"}]
+    assert out["slots"] == [{"hour": "12am", "code": 0, "is_day": False, "temp_label": "0F", "temp_color": "blue"},
+                            {"hour": "6am", "code": 6, "is_day": False, "temp_label": "6F", "temp_color": "blue"},
+                            {"hour": "12pm", "code": 12, "is_day": True, "temp_label": "12F", "temp_color": "blue"},
+                            {"hour": "6pm", "code": 18, "is_day": True, "temp_label": "18F", "temp_color": "blue"}]
     default = providers.fetch_forecast(1, 2, "2026-10-17")      # 6am to 10pm every 3 hours
     assert [s["hour"] for s in default["slots"]] == ["6am", "9am", "12pm", "3pm", "6pm", "9pm"]
 

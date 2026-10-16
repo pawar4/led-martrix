@@ -41,10 +41,21 @@ def hour_label(h):
     return f"{h % 12 or 12}{'am' if h < 12 else 'pm'}"
 
 
+# (cold at or below, hot at or above), in each unit
+TEMP_BANDS = {"fahrenheit": (50, 80), "celsius": (4, 29)}
+
+
+def temp_color(temp, units="fahrenheit"):
+    """Color name for a temperature: blue when cold, red when hot, yellow in between."""
+    cold, hot = TEMP_BANDS[units]
+    return "blue" if temp <= cold else "red" if temp >= hot else "yellow"
+
+
 def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", start_hour=6, end_hour=22, count=6, timeout=10):
-    """{"date_label", "slots": [{"hour", "code", "temp_label"}, ...]}: a slot every `step_hours` from
-    `start_hour` up to and including `end_hour` of `day`. With day="now", `count` slots every `step_hours`
-    starting at the current hour at the location (start_hour/end_hour are ignored)."""
+    """{"date_label", "slots": [{"hour", "code", "is_day", "temp_label", "temp_color"}, ...]}: a slot every
+    `step_hours` from `start_hour` up to and including `end_hour` of `day`. With day="now", `count` slots every
+    `step_hours` starting at the current hour at the location (start_hour/end_hour are ignored). `temp_color`
+    is blue when cold, red when hot and yellow otherwise (see TEMP_BANDS)."""
     rolling = day == "now"
     d = date.today() if rolling else resolve_day(day)
     last = d + timedelta(days=1) if rolling else d
@@ -68,9 +79,11 @@ def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", star
         hours = [(local.hour + i * step_hours) % 24 for i in range(count)]
     else:
         indexes = hours = list(range(start_hour, end_hour + 1, step_hours))
-    slots = [{"hour": hour_label(h), "code": hourly["weather_code"][i], "is_day": bool(hourly["is_day"][i]),
-              "temp_label": f"{round(hourly['temperature_2m'][i])}{units[0].upper()}"}
-             for i, h in zip(indexes, hours)]
+    slots = []
+    for i, h in zip(indexes, hours):
+        temp = round(hourly["temperature_2m"][i])
+        slots.append({"hour": hour_label(h), "code": hourly["weather_code"][i], "is_day": bool(hourly["is_day"][i]),
+                      "temp_label": f"{temp}{units[0].upper()}", "temp_color": temp_color(temp, units)})
     return {"date_label": d.strftime("%a %b %d"), "slots": slots}
 
 

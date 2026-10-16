@@ -5,6 +5,7 @@ from datetime import datetime
 import pytest
 
 from matrix_ui import ConfigError, DataModel, Surface
+from matrix_ui.catalog import COLORS
 from matrix_ui.layout import Rect, split
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -190,8 +191,10 @@ def test_weather_sample_screen_renders():
     _, gfx = render(os.path.join(ROOT, "screens/weather.json"), data)
     texts = [t[3] for t in gfx.texts]
     assert texts[0] == "Sat Oct 17"
-    assert texts[1:5] == ["6am", "56F", "9am", "62F"]
+    assert texts[1:5] == ["6am", "38F", "9am", "62F"]
     assert len(texts) == 1 + 6 * 2
+    colors = {t[3]: t[2] for t in gfx.texts}          # cold is blue, hot is red, the rest yellow
+    assert (colors["38F"], colors["62F"], colors["86F"]) == (COLORS["blue"], COLORS["yellow"], COLORS["red"])
 
 
 def test_markets_sample_screen_renders():
