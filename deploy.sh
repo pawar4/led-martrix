@@ -6,7 +6,6 @@
 #   ./deploy.sh --dry-run       # show what would change on the Pi, change nothing
 #   ./deploy.sh --keep-old      # leave the old new_subway.py cron job/process alone
 #   ./deploy.sh --push-config   # also overwrite the Pi's matrix.json with yours (old one saved as matrix.json.bak)
-#   ./deploy.sh --with-homeassistant   # passed through to install.sh
 #
 # Env: PI_HOST=user@host, PI_SRC=<staging dir on the Pi> (default ~/led-matrix-src).
 # Auth: one SSH connection is shared by every step, so you type the password once.
@@ -24,8 +23,7 @@ for arg in "$@"; do
     --dry-run) DRY=1; INSTALL_ARGS+=(--dry-run) ;;
     --keep-old) KEEP_OLD=1 ;;
     --push-config) PUSH_CONFIG=1 ;;
-    --with-homeassistant) INSTALL_ARGS+=("$arg") ;;
-    -h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg (try --help)" >&2; exit 2 ;;
   esac
 done
@@ -44,7 +42,7 @@ step "Sync code -> ~/$PI_SRC"
 pi "$PI_HOST" 'command -v rsync >/dev/null || sudo apt-get install -y rsync'
 rsync -az --delete $([ $DRY = 1 ] && echo --dry-run) -e "ssh ${SSH_OPTS[*]}" \
   --exclude .git --exclude .venv --exclude __pycache__ --exclude .pytest_cache \
-  --exclude .env --exclude 'deploy/homeassistant/config' \
+  --exclude .env \
   "$HERE"/ "$PI_HOST:$PI_SRC"/
 
 if [ $KEEP_OLD = 0 ]; then
@@ -77,7 +75,7 @@ pi -t "$PI_HOST" "cd ~/$PI_SRC && ./install.sh ${INSTALL_ARGS[*]:-}"
 
 if [ $PUSH_CONFIG = 1 ]; then
   step "Push matrix.json (the runner follows the edit; no restart needed)"
-  # install.sh never overwrites it: the assistant and Home Assistant edit it on the Pi.
+  # install.sh never overwrites it: the web page edits it on the Pi.
   pi "$PI_HOST" 'sudo cp -p /opt/led-matrix/matrix.json /opt/led-matrix/matrix.json.bak 2>/dev/null || true'
   rsync -az -e "ssh ${SSH_OPTS[*]}" --rsync-path="sudo rsync" --no-owner --no-group "$HERE/matrix.json" "$PI_HOST:/opt/led-matrix/matrix.json"
 fi

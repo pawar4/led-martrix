@@ -148,6 +148,9 @@ loaded from `matrix.json` and reloaded whenever the file changes:
 | `rotation` | `{"screens": ["subway", "weather"], "dwell": 20}`, seconds per screen (default 20) |
 | `screens.<name>.sources.<mount>` | params merged over that screen's source with the same `mount`, e.g. `{"symbol": "AAPL"}` |
 
+You can edit `matrix.json` by hand or from the [web page](web.md#web-page). The runner is lenient about what it
+reads (it skips what it can't parse), but the page and the API refuse to write an invalid model and say why.
+
 ### Schedule
 
 ```json

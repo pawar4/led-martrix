@@ -18,7 +18,7 @@ python preview.py screens/weather.json             # daylight bar + next 18 hour
 python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")
-python serve.py                                     # POST /ask {"query": "show the weather"} edits matrix.json (run alongside run.py)
+python serve.py                                     # web page at http://localhost:8099/ to edit matrix.json (run alongside run.py)
 python run.py                                      # the global model (matrix.json) picks, rotates and configures screens; add --live for real data
 python preview.py screens/subway.json --live          # real MTA + weather data (sources declared in the screen config)
 ```
@@ -29,12 +29,12 @@ On the Pi, install the real `rgbmatrix` bindings; `matrix_ui.backend` uses them 
 
 ```bash
 git clone <this repo> && cd led-martrix
-./install.sh --with-homeassistant      # --dry-run first to see every step
+./install.sh      # --dry-run first to see every step
 ```
 
 It installs to `/opt/led-matrix`, builds the `rgbmatrix` bindings into that venv, and enables `led-matrix` (the runner,
-`run.py --live`) and `led-matrix-assistant` (`serve.py`, once the Claude Code CLI is logged in as the install user).
-From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the old `new_subway.py` cron job, run `install.sh`; `--dry-run` first, `PI_HOST=user@host` to override; `--push-config` also overwrites the Pi's `matrix.json` with yours, which a plain deploy keeps because the assistant edits it there). Re-run either to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
+`run.py --live`) and `led-matrix-assistant` (`serve.py`: the web page at `http://<pi>.local/`, also port 8099; it only answers the local network).
+From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the old `new_subway.py` cron job, run `install.sh`; `--dry-run` first, `PI_HOST=user@host` to override; `--push-config` also overwrites the Pi's `matrix.json` with yours, which a plain deploy keeps because the web page edits it there). Re-run either to deploy code changes; `matrix.json` and the env file are kept. Reboot once after the first run.
 
 ## Layout
 
@@ -43,9 +43,11 @@ From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the ol
 | `matrix_ui/` | The resolver package (config loading, widgets, layout, data model, data sources, icons, backend) |
 | `screens/` | Screen configs, each with a `<name>.sample_data.json` for previews |
 | `assets/` | Pictures that screens load with `Image` (`tanner.png` is the guest countdown picture) |
-| `serve.py`, `matrix_ui/assistant.py` | HTTP service that turns a plain-English request into a change to `matrix.json` (Claude + validation); for Home Assistant. See `docs/assistant.md` |
+| `serve.py`, `matrix_ui/model_store.py` | HTTP service that edits `matrix.json`: serves the control page and takes validated edits (`PATCH /model`), for the local network only. See `docs/web.md` |
+| `web/` | The control page (`index.html`, no build step) |
 | `deploy.sh` | Run from your laptop: syncs the repo to the Pi over SSH, removes the old `new_subway.py` `@reboot` cron entry and process, then runs `install.sh` there |
-| `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services, optional Home Assistant (`--with-homeassistant`) |
+| `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services |
+| `scripts/set-password.sh` | Sets (or changes) the web page password: writes `MATRIX_TOKEN` to `/etc/led-matrix.env` on the Pi and restarts the service |
 | `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, sleep window, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |
@@ -60,6 +62,6 @@ From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the ol
 
 ## Not done yet
 
-Multi-symbol markets rotation, time-of-day screen scheduling, a remote control channel (HTTP/MQTT) writing into the global model, and AI authoring of screens.
+Multi-symbol markets rotation, time-of-day screen scheduling and a remote control channel (HTTP/MQTT) writing into the global model.
 The riddle and Bondi pages are retired; trivia replaces the riddle, and `screens/guest.json` is the Bondi layout (picture
 plus speech bubble) rebuilt from widgets.

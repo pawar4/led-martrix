@@ -35,6 +35,21 @@ def test_active_window():
     assert c.active(ts(10, 0, 14), 15) and not c.active(ts(10, 0, 15), 15) and c.active(ts(10, 15), 15)
 
 
+def test_next_firing():
+    c = Cron("0 */15 * * * *")
+    assert c.next(ts(10, 0, 0)) == ts(10, 15)           # strictly after
+    assert c.next(ts(10, 7, 30)) == ts(10, 15)
+    assert c.next(ts(10, 50)) == ts(11, 0)               # rolls into the next hour
+    assert Cron("30 8 * * *").next(ts(9)) == ts(8, 30, day=6)    # tomorrow
+    assert Cron("0 8 * * 0").next(ts(9)) == ts(8, day=11)         # next Sunday
+    assert Cron("* * * * * *").next(ts(23, 59, 59)) == ts(0, day=6)
+
+
+def test_next_skips_to_a_matching_date_or_gives_up():
+    assert Cron("0 0 1 3 *").next(ts(0)) == time.mktime((2026, 3, 1, 0, 0, 0, 0, 0, -1))
+    assert Cron("0 0 31 2 *").next(ts(0)) is None        # there is no Feb 31
+
+
 @pytest.mark.parametrize("bad", ["", "* * *", "60 * * * *", "* 24 * * *", "*/0 * * * *", "a * * * *", "5-2 * * * *"])
 def test_bad_expressions_raise(bad):
     with pytest.raises(ValueError):

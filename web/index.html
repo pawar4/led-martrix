@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LED Matrix</title>
+<link rel="icon" href="data:,">
+<style>
+:root {
+  color-scheme: light dark;
+  --bg: #f4f5f7; --card: #ffffff; --text: #14171c; --muted: #5b6573; --line: #dde1e7; --field: #ffffff;
+  --accent: #2563eb; --on-accent: #ffffff; --bad: #b42318; --ok: #157347; --mod: #a85d00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d0f12; --card: #16191e; --text: #e7e9ed; --muted: #98a2b0; --line: #2a2f37; --field: #0e1115;
+    --accent: #6c9bff; --on-accent: #0a1120; --bad: #ff8a80; --ok: #55c98f; --mod: #e8aa48;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.top { max-width: 760px; margin: 0 auto; padding: 20px 16px 12px; display: flex; align-items: baseline; gap: 12px; }
+h1 { font-size: 20px; margin: 0; }
+h2 { font-size: 15px; margin: 0 0 4px; }
+h3 { font-size: 13px; margin: 16px 0 6px; color: var(--muted); font-weight: 600; }
+#status { color: var(--ok); font-size: 13px; }
+main { padding-bottom: 110px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin: 0 0 12px; }
+.hint { color: var(--muted); font-size: 13px; margin: 4px 0 10px; }
+.hint.bad, .bad { color: var(--bad); }
+.pin-warn { color: var(--mod); font-size: 13px; margin: 4px 0 10px; }
+
+input, select, textarea, button { font: inherit; color: var(--text); }
+input[type=text], input[type=number], input[type=time], input[type=password], select, textarea {
+  background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-height: 36px; max-width: 100%;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+input[aria-invalid=true] { border-color: var(--bad); }
+input[type=range] { accent-color: var(--accent); flex: 1; min-width: 120px; }
+textarea { width: 100%; min-height: 260px; font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; }
+
+.btn { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; min-height: 36px; cursor: pointer; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn:disabled { opacity: .45; cursor: default; }
+.icon { padding: 0; width: 36px; }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; }
+.row > .grow { flex: 1; min-width: 160px; }
+.row > .grow > select { width: 100%; }
+.field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.field input, .field select { color: var(--text); font-size: 15px; }
+.field.grow { flex: 1; min-width: 150px; }
+.field.narrow input { width: 90px; }
+.rule { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.rule:first-of-type { border-top: 0; }
+.rule .hint { margin: 2px 0 4px; }
+.rule .actions { display: flex; gap: 4px; margin-left: auto; align-self: flex-end; }
+form.inline { display: flex; flex-wrap: wrap; gap: 8px; }
+form.inline input { flex: 1; min-width: 200px; }
+
+.switch { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+.switch input { position: absolute; opacity: 0; }
+.switch .track { width: 42px; height: 24px; border-radius: 12px; background: var(--line); position: relative; transition: background .15s; }
+.switch .track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 1px var(--muted); transition: transform .15s; }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(18px); box-shadow: none; }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.param { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+.param.mod > span::after { content: " (changed)"; color: var(--mod); }
+.params { display: flex; flex-wrap: wrap; gap: 10px 14px; }
+.params input[type=text], .params input[type=number] { width: 150px; color: var(--text); font-size: 15px; }
+.params .check { flex-direction: row; align-items: center; gap: 8px; align-self: flex-end; min-height: 36px; font-size: 15px; color: var(--text); }
+.mount { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+.mount > .head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.mount code { color: var(--muted); }
+.mount .btn { margin-left: auto; min-height: 30px; padding: 2px 10px; font-size: 13px; }
+
+details > summary { cursor: pointer; font-weight: 600; font-size: 15px; }
+details[open] > summary { margin-bottom: 8px; }
+
+#bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+#bar .inner { max-width: 760px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+#bar-text { flex: 1; min-width: 180px; font-size: 14px; }
+#bar-error { flex-basis: 100%; color: var(--bad); font-size: 13px; margin: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header class="top"><h1>LED Matrix</h1><span id="status" role="status" aria-live="polite"></span></header>
+
+<div id="auth" class="wrap" hidden>
+  <section class="card">
+    <h2>Access token</h2>
+    <p class="hint">This matrix needs a token. It is <code>MATRIX_TOKEN</code> in <code>/etc/led-matrix.env</code> on the Pi. It is kept in this browser only.</p>
+    <form id="auth-form" class="inline">
+      <input id="auth-input" type="password" autocomplete="current-password" aria-label="Access token" required>
+      <button class="btn primary">Continue</button>
+    </form>
+    <p id="auth-error" class="hint bad" hidden>That token wasn't accepted.</p>
+  </section>
+</div>
+
+<div id="fatal" class="wrap" hidden><section class="card"><h2>Can't reach the matrix service</h2><p id="fatal-text" class="hint bad"></p><button id="retry" class="btn">Try again</button></section></div>
+
+<main id="app" class="wrap" hidden>
+  <section class="card">
+    <h2>History</h2>
+    <div class="inline"><button id="undo" type="button" class="btn">Undo</button></div>
+    <p id="undo-reply" class="hint" role="status"></p>
+  </section>
+
+  <section class="card"><h2>Display</h2><div id="display"></div></section>
+
+  <section class="card">
+    <h2>Schedule</h2>
+    <p class="hint">Rules are checked top to bottom and the first one that matches now decides the screen. Put the rarest on top and a rule with no time last as the fallback.</p>
+    <p class="pin-warn" hidden>A screen is pinned, so the schedule is paused.</p>
+    <div id="schedule"></div>
+    <details class="hint"><summary style="font-weight:400;font-size:13px">Time format</summary>
+      <p>Cron, in the Pi's local time: <code>min hour day month weekday</code>, or six fields with leading seconds. Weekday 0 is Sunday. Each field takes <code>*</code>, numbers, ranges (<code>9-16</code>), lists (<code>1,3</code>) and steps (<code>*/15</code>).</p>
+      <p><code>0 */15 * * * *</code> the start of every quarter hour &middot; <code>0 0 * * * *</code> every hour &middot; <code>* 9-16 * * 1-5</code> every second of weekday 9am to 4:59pm</p>
+      <p>"For" is how many seconds the screen stays up from each firing (default 60).</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>Rotation</h2>
+    <p class="hint">Cycles through these screens when no schedule rule matches.</p>
+    <p class="pin-warn" hidden>A screen is pinned, so the rotation is paused.</p>
+    <div id="rotation"></div>
+  </section>
+
+  <section class="card">
+    <h2>Sleep</h2>
+    <p class="hint">The matrix goes dark from start until end (it may cross midnight). Sleep wins over everything else.</p>
+    <div id="sleep"></div>
+  </section>
+
+  <section class="card">
+    <h2>Data sources</h2>
+    <p class="hint">Change what a screen shows, such as a market symbol. Only values that differ from the screen's own are saved.</p>
+    <div id="sources"></div>
+  </section>
+
+  <details class="card">
+    <summary>Raw JSON</summary>
+    <p class="hint">The whole model, <code>matrix.json</code>. Edits here and in the forms above are the same draft.</p>
+    <textarea id="raw" spellcheck="false" aria-label="matrix.json"></textarea>
+    <p id="raw-error" class="hint bad" hidden></p>
+  </details>
+</main>
+
+<div id="bar" hidden>
+  <div class="inner">
+    <span id="bar-text"></span>
+    <button id="discard" class="btn">Discard</button>
+    <button id="save" class="btn primary">Save</button>
+    <p id="bar-error" hidden></p>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const $ = (s) => document.querySelector(s);
+
+// Build an element. Plain string children become text nodes, so server text is never parsed as HTML.
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  let value;
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'value') value = v;
+    else if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else if (k === 'checked' || k === 'disabled' || k === 'hidden' || k === 'selected') el[k] = v;
+    else if (v !== false && v != null) el.setAttribute(k, v === true ? '' : v);
+  }
+  el.append(...kids.flat().filter((c) => c != null && c !== false));
+  if (value !== undefined) el.value = value;     // after the children, so a <select> already has its options
+  return el;
+}
+
+const clone = (v) => JSON.parse(JSON.stringify(v));
+const stable = (v) => JSON.stringify(v, (k, x) =>
+  x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => (a < b ? -1 : 1))) : x);
+
+let token = '';
+try { token = localStorage.getItem('matrix-token') || ''; } catch (e) { /* storage blocked: ask each visit */ }
+
+class AuthError extends Error {}
+
+async function api(method, path, body) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) throw new AuthError();
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  return data;
+}
+
+let server = {};      // the model as the service has it
+let draft = {};       // the model with the edits made here
+let screens = {};     // {screen name: [source specs]}
+let rawInvalid = false;
+let busy = false;
+
+const screenNames = () => Object.keys(screens);
+
+// ---- draft bookkeeping ----
+
+function diff() {
+  const out = {};
+  for (const k of new Set([...Object.keys(server), ...Object.keys(draft)])) {
+    if (stable(server[k]) !== stable(draft[k])) out[k] = k in draft ? draft[k] : null;
+  }
+  return out;
+}
+
+function changed() {
+  const keys = Object.keys(diff());
+  $('#bar').hidden = !keys.length;
+  $('#bar-text').textContent = keys.length ? `Unsaved changes: ${keys.join(', ')}` : '';
+  $('#save').disabled = rawInvalid;
+  $('#bar-error').hidden = true;
+  document.querySelectorAll('.pin-warn').forEach((el) => { el.hidden = !draft.screen; });
+  if (document.activeElement !== $('#raw')) syncRaw();
+}
+
+function syncRaw() {
+  $('#raw').value = JSON.stringify(draft, null, 2);
+  $('#raw-error').hidden = true;
+  rawInvalid = false;
+  $('#save').disabled = false;
+}
+
+// Replace the service's model (it changed under us, or an undo restored an older one) and keep the edits not yet saved.
+function adopt(model) {
+  const pending = rawInvalid ? {} : diff();
+  server = model;
+  draft = clone(model);
+  for (const [k, v] of Object.entries(pending)) { if (v === null) delete draft[k]; else draft[k] = v; }
+  renderAll();
+}
+
+function toast(text) {
+  const el = $('#status');
+  el.textContent = text;
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+// ---- small widgets ----
+
+function screenSelect(value, onchange, blank) {
+  const names = screenNames();
+  const missing = value && !names.includes(value);
+  return h('select', { onchange: (e) => onchange(e.target.value), value: value || '' },
+    blank ? h('option', { value: '' }, blank) : null,
+    missing ? h('option', { value }, `${value} (missing)`) : null,
+    names.map((n) => h('option', { value: n }, n)));
+}
+
+const iconBtn = (glyph, label, onclick, disabled) =>
+  h('button', { type: 'button', class: 'btn icon', 'aria-label': label, title: label, onclick, disabled: !!disabled }, glyph);
+
+function move(list, i, by) {
+  const j = i + by;
+  [list[i], list[j]] = [list[j], list[i]];
+}
+
+// ---- Display ----
+
+function renderDisplay() {
+  const on = draft.power !== false;
+  const label = h('span', {}, on ? 'On' : 'Off');
+  const power = h('label', { class: 'switch' },
+    h('input', { type: 'checkbox', role: 'switch', checked: on, onchange: (e) => {
+      draft.power = e.target.checked;
+      label.textContent = e.target.checked ? 'On' : 'Off';
+      changed();
+    } }),
+    h('span', { class: 'track' }), label);
+
+  const b = draft.brightness ?? 100;
+  const setB = (n, fromNumber) => {
+    draft.brightness = n;
+    range.value = n;
+    if (!fromNumber) num.value = n;
+    changed();
+  };
+  const range = h('input', { type: 'range', min: 1, max: 100, value: b, 'aria-label': 'Brightness', oninput: (e) => setB(+e.target.value) });
+  const num = h('input', { type: 'number', min: 1, max: 100, value: b, 'aria-label': 'Brightness value', style: 'width:76px',
+    oninput: (e) => { if (e.target.value !== '') setB(+e.target.value, true); } });
+
+  const pin = screenSelect(draft.screen, (v) => { if (v) draft.screen = v; else delete draft.screen; changed(); },
+    'None: follow the schedule and rotation');
+
+  $('#display').replaceChildren(
+    h('div', { class: 'row' }, power),
+    h('div', { class: 'row' }, h('span', {}, 'Brightness'), range, num),
+    h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Pin one screen', pin)));
+}
+
+// ---- Schedule ----
+
+function previewCron(input, out) {
+  clearTimeout(input._timer);
+  const expr = input.value.trim();
+  out.className = 'hint';
+  if (!expr) { out.textContent = 'Always matches, so keep it last as the fallback.'; return; }
+  input._timer = setTimeout(async () => {
+    let text, bad = false;
+    try {
+      const { next } = await api('GET', `/cron?at=${encodeURIComponent(expr)}&count=3`);
+      text = next.length ? `Next: ${next.join('  ·  ')}` : 'Never fires.';
+    } catch (e) { text = e.message; bad = true; }
+    if (input.value.trim() !== expr) return;       // edited again while waiting
+    out.className = bad ? 'hint bad' : 'hint';
+    out.textContent = text;
+  }, 250);
+}
+
+function renderSchedule() {
+  const rules = draft.schedule || [];
+  const commit = () => { if (rules.length) draft.schedule = rules; else delete draft.schedule; changed(); };
+  const redraw = () => { commit(); renderSchedule(); };
+
+  const rows = rules.map((rule, i) => {
+    const out = h('p', { class: 'hint' });
+    const length = h('input', { type: 'number', min: 1, step: 'any', placeholder: '60', value: rule.for ?? '', disabled: !rule.at,
+      oninput: (e) => { if (e.target.value === '') delete rule.for; else rule.for = +e.target.value; commit(); } });
+    const at = h('input', { type: 'text', spellcheck: 'false', placeholder: 'always', value: rule.at || '',
+      oninput: (e) => {
+        if (e.target.value.trim()) rule.at = e.target.value; else { delete rule.at; delete rule.for; length.value = ''; }
+        length.disabled = !rule.at;
+        previewCron(at, out);
+        commit();
+      } });
+    previewCron(at, out);
+    return h('div', { class: 'rule' },
+      h('div', { class: 'row' },
+        h('label', { class: 'field' }, 'Screen', screenSelect(rule.screen, (v) => { rule.screen = v; commit(); })),
+        h('label', { class: 'field grow' }, 'When', at),
+        h('label', { class: 'field narrow' }, 'For (s)', length),
+        h('div', { class: 'actions' },
+          iconBtn('↑', 'Move rule up', () => { move(rules, i, -1); redraw(); }, i === 0),
+          iconBtn('↓', 'Move rule down', () => { move(rules, i, 1); redraw(); }, i === rules.length - 1),
+          iconBtn('✕', 'Delete rule', () => { rules.splice(i, 1); redraw(); }))),
+      out);
+  });
+
+  const add = h('button', { type: 'button', class: 'btn', disabled: !screenNames().length, onclick: () => {
+    const rule = { screen: screenNames()[0], at: '0 0 * * * *', for: 15 };
+    const fallback = rules.length && !rules[rules.length - 1].at;     // keep a trailing fallback last
+    rules.splice(fallback ? rules.length - 1 : rules.length, 0, rule);
+    redraw();
+  } }, 'Add rule');
+
+  $('#schedule').replaceChildren(...rows, h('div', { class: 'row' }, add));
+}
+
+// ---- Rotation ----
+
+function renderRotation() {
+  const rot = draft.rotation || { screens: [] };
+  const list = rot.screens;
+  const commit = () => { if (list.length) draft.rotation = rot; else delete draft.rotation; changed(); };
+  const redraw = () => { commit(); renderRotation(); };
+
+  const rows = list.map((name, i) => h('div', { class: 'row' },
+    h('div', { class: 'grow' }, screenSelect(name, (v) => { list[i] = v; commit(); })),
+    iconBtn('↑', 'Move up', () => { move(list, i, -1); redraw(); }, i === 0),
+    iconBtn('↓', 'Move down', () => { move(list, i, 1); redraw(); }, i === list.length - 1),
+    iconBtn('✕', 'Remove', () => { list.splice(i, 1); redraw(); })));
+
+  const dwell = h('input', { type: 'number', min: 1, step: 'any', placeholder: '20', value: rot.dwell ?? '', style: 'width:90px',
+    oninput: (e) => { if (e.target.value === '') delete rot.dwell; else rot.dwell = +e.target.value; commit(); } });
+
+  $('#rotation').replaceChildren(...rows,
+    h('div', { class: 'row' },
+      h('button', { type: 'button', class: 'btn', disabled: !screenNames().length, onclick: () => { list.push(screenNames()[0]); redraw(); } }, 'Add screen'),
+      list.length ? h('label', { class: 'row', style: 'margin:0' }, 'Seconds on each', dwell) : null));
+}
+
+// ---- Sleep ----
+
+const DEFAULT_WINDOW = { start: '23:00', end: '07:00' };
+
+function sleepMode() {
+  const s = draft.sleep;
+  if (!s || typeof s !== 'object') return 'off';
+  return 'weekday' in s || 'weekend' in s ? 'split' : 'daily';
+}
+
+function timeFields(win) {
+  const time = (key, label) => h('label', { class: 'field' }, label,
+    h('input', { type: 'time', value: win[key] || '', oninput: (e) => { win[key] = e.target.value; changed(); } }));
+  return [time('start', 'From'), time('end', 'Until')];
+}
+
+function renderSleep() {
+  const mode = sleepMode();
+  const s = draft.sleep || {};
+  const select = h('select', { 'aria-label': 'Sleep mode', value: mode, onchange: (e) => {
+    const to = e.target.value;
+    const current = mode === 'split' ? s.weekday || s.weekend : mode === 'daily' ? s : null;
+    const win = { start: current?.start || DEFAULT_WINDOW.start, end: current?.end || DEFAULT_WINDOW.end };
+    if (to === 'off') delete draft.sleep;
+    else if (to === 'daily') draft.sleep = win;
+    else draft.sleep = { weekday: { ...win }, weekend: { ...win } };
+    changed();
+    renderSleep();
+  } },
+    h('option', { value: 'off' }, 'Never sleep'),
+    h('option', { value: 'daily' }, 'Same every day'),
+    h('option', { value: 'split' }, 'Weekdays and weekends differ'));
+
+  const body = [];
+  if (mode === 'daily') body.push(h('div', { class: 'row' }, ...timeFields(s)));
+  if (mode === 'split') {
+    for (const [day, label] of [['weekday', 'Weekdays (Mon to Fri)'], ['weekend', 'Weekends (Sat, Sun)']]) {
+      const on = day in s;
+      body.push(h('div', { class: 'row' },
+        h('label', { class: 'switch', style: 'min-width:190px' },
+          h('input', { type: 'checkbox', role: 'switch', checked: on, onchange: (e) => {
+            if (e.target.checked) s[day] = { ...DEFAULT_WINDOW }; else delete s[day];
+            if (!('weekday' in s) && !('weekend' in s)) delete draft.sleep;
+            changed();
+            renderSleep();
+          } }),
+          h('span', { class: 'track' }), h('span', {}, label)),
+        on ? timeFields(s[day]) : null));
+    }
+  }
+  $('#sleep').replaceChildren(h('div', { class: 'row' }, h('label', { class: 'field grow' }, 'Sleep', select)), ...body);
+}
+
+// ---- Data sources ----
+
+// Put `value` in the override for one param, or take it out when it equals the screen's own; drop emptied parents.
+function setOverride(name, mount, key, value, fallback) {
+  const sources = draft.screens?.[name]?.sources;
+  if (stable(value) !== stable(fallback)) {
+    draft.screens ??= {};
+    draft.screens[name] ??= {};
+    draft.screens[name].sources ??= {};
+    (draft.screens[name].sources[mount] ??= {})[key] = value;
+  } else if (sources?.[mount]) {
+    delete sources[mount][key];
+  }
+  pruneOverrides(name, mount);
+}
+
+function pruneOverrides(name, mount) {
+  const entry = draft.screens?.[name];
+  if (!entry) return;
+  if (entry.sources?.[mount] && !Object.keys(entry.sources[mount]).length) delete entry.sources[mount];
+  if (entry.sources && !Object.keys(entry.sources).length) delete entry.sources;
+  if (!Object.keys(entry).length) delete draft.screens[name];
+  if (!Object.keys(draft.screens).length) delete draft.screens;
+}
+
+function paramField(name, mount, key, fallback) {
+  const overridden = () => key in (draft.screens?.[name]?.sources?.[mount] || {});
+  const current = overridden() ? draft.screens[name].sources[mount][key] : fallback;
+  const wrap = h('label', { class: 'param' });
+  const mark = () => wrap.classList.toggle('mod', overridden());
+  const save = (value) => { setOverride(name, mount, key, value, fallback); mark(); changed(); };
+  let input;
+  if (typeof fallback === 'boolean') {
+    input = h('input', { type: 'checkbox', checked: !!current, onchange: (e) => save(e.target.checked) });
+    wrap.classList.add('check');
+  } else if (typeof fallback === 'number') {
+    input = h('input', { type: 'number', step: 'any', value: current, onchange: (e) => save(e.target.value === '' ? fallback : +e.target.value) });
+  } else if (typeof fallback === 'string') {
+    input = h('input', { type: 'text', spellcheck: 'false', value: current, onchange: (e) => save(e.target.value) });
+  } else {
+    input = h('input', { type: 'text', spellcheck: 'false', value: JSON.stringify(current), 'aria-invalid': false, onchange: (e) => {
+      try { const v = JSON.parse(e.target.value); e.target.setAttribute('aria-invalid', 'false'); save(v); }
+      catch (err) { e.target.setAttribute('aria-invalid', 'true'); }
+    } });
+  }
+  wrap.append(h('span', {}, key), input);
+  mark();
+  return wrap;
+}
+
+function renderSources() {
+  const blocks = [];
+  for (const [name, specs] of Object.entries(screens)) {
+    const mounts = specs.filter((s) => s && typeof s === 'object' && s.mount);
+    if (!mounts.length) continue;
+    blocks.push(h('h3', {}, name));
+    for (const spec of mounts) {
+      const params = Object.entries(spec).filter(([k]) => k !== 'type' && k !== 'mount');
+      const reset = h('button', { type: 'button', class: 'btn', onclick: () => {
+        if (draft.screens?.[name]?.sources) delete draft.screens[name].sources[spec.mount];
+        pruneOverrides(name, spec.mount);
+        changed();
+        renderSources();
+      } }, 'Reset');
+      blocks.push(h('div', { class: 'mount' },
+        h('div', { class: 'head' }, h('strong', {}, spec.type), h('code', {}, spec.mount), reset),
+        h('div', { class: 'params' }, params.map(([k, v]) => paramField(name, spec.mount, k, v)))));
+    }
+  }
+  $('#sources').replaceChildren(...(blocks.length ? blocks : [h('p', { class: 'hint' }, 'No screen declares data sources.')]));
+}
+
+// ---- whole page ----
+
+function renderForms() {
+  renderDisplay();
+  renderSchedule();
+  renderRotation();
+  renderSleep();
+  renderSources();
+  changed();
+}
+
+function renderAll() {
+  renderForms();
+  syncRaw();
+}
+
+// ---- actions ----
+
+function showAuth(rejected) {
+  $('#app').hidden = $('#fatal').hidden = $('#bar').hidden = true;
+  $('#auth').hidden = false;
+  $('#auth-error').hidden = !rejected;
+  $('#auth-input').focus();
+}
+
+async function guarded(fn) {
+  try { return await fn(); }
+  catch (e) {
+    if (e instanceof AuthError) showAuth(true);
+    else throw e;
+  }
+}
+
+async function load() {
+  try {
+    [server, screens] = await Promise.all([api('GET', '/model'), api('GET', '/screens')]);
+  } catch (e) {
+    if (e instanceof AuthError) return showAuth(!!token);
+    $('#app').hidden = $('#auth').hidden = true;
+    $('#fatal').hidden = false;
+    $('#fatal-text').textContent = e.message;
+    return;
+  }
+  draft = clone(server);
+  $('#auth').hidden = $('#fatal').hidden = true;
+  $('#app').hidden = false;
+  renderAll();
+}
+
+async function save() {
+  const changes = diff();
+  if (!Object.keys(changes).length || rawInvalid) return;
+  $('#save').disabled = true;
+  await guarded(async () => {
+    try {
+      const result = await api('PATCH', '/model', changes);
+      server = result.model;
+      draft = clone(server);
+      renderAll();
+      toast('Saved. The matrix follows within a second.');
+    } catch (e) {
+      $('#bar-error').textContent = e.message;
+      $('#bar-error').hidden = false;
+      $('#save').disabled = false;
+    }
+  });
+}
+
+async function undo() {
+  if (busy) return;
+  busy = true;
+  const reply = $('#undo-reply');
+  reply.className = 'hint';
+  reply.textContent = 'Undoing.';
+  $('#undo').disabled = true;
+  await guarded(async () => {
+    try {
+      const result = await api('POST', '/undo');
+      reply.textContent = result.reply;
+      if (result.changed) adopt(result.model);
+    } catch (e) {
+      reply.className = 'hint bad';
+      reply.textContent = e.message;
+    }
+  });
+  $('#undo').disabled = false;
+  busy = false;
+}
+
+// Pick up changes made elsewhere (another browser tab, a script calling the API) unless the person is mid-edit.
+async function poll() {
+  if (document.hidden || busy || $('#app').hidden) return;
+  const active = document.activeElement;
+  if (active && active.matches('input, select, textarea')) return;
+  try {
+    const model = await api('GET', '/model');
+    if (stable(model) !== stable(server)) adopt(model);
+  } catch (e) { /* the next tick tries again */ }
+}
+
+$('#undo').addEventListener('click', undo);
+$('#save').addEventListener('click', save);
+$('#discard').addEventListener('click', () => { draft = clone(server); renderAll(); });
+$('#retry').addEventListener('click', load);
+$('#auth-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  token = $('#auth-input').value.trim();
+  try { localStorage.setItem('matrix-token', token); } catch (err) { /* kept for this visit only */ }
+  $('#auth-input').value = '';
+  load();
+});
+$('#raw').addEventListener('input', (e) => {
+  const error = $('#raw-error');
+  try {
+    const parsed = JSON.parse(e.target.value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('the model must be a JSON object');
+    draft = parsed;
+    rawInvalid = false;
+    error.hidden = true;
+    try { renderForms(); } catch (err) { /* the forms can't show this shape; Save will say what the service thinks */ }
+    changed();
+  } catch (err) {
+    rawInvalid = true;
+    error.textContent = `Not valid yet: ${err.message}`;
+    error.hidden = false;
+    $('#save').disabled = true;
+  }
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's' && !$('#app').hidden) { e.preventDefault(); save(); }
+});
+document.addEventListener('visibilitychange', poll);
+setInterval(poll, 5000);
+
+load();
+})();
+</script>
+</body>
+</html>

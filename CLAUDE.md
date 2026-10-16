@@ -13,6 +13,7 @@ pytest tests/test_resolver.py -k <name>        # single test
 python preview.py screens/subway.json          # emulator at http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame to PNG
 python preview.py screens/subway.json --live  # run the screen's "sources" (real data) instead of sample data
+python serve.py --config /tmp/m.json           # control page at http://localhost:8099/ editing a scratch copy of matrix.json
 ```
 
 Off-Pi uses RGBMatrixEmulator; on the Pi `matrix_ui.backend` prefers the real `rgbmatrix` bindings.

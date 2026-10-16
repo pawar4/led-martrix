@@ -42,7 +42,7 @@ def hour_label(h):
 
 
 # (cold at or below, hot at or above), in each unit
-TEMP_BANDS = {"fahrenheit": (50, 80), "celsius": (4, 29)}
+TEMP_BANDS = {"fahrenheit": (40, 85), "celsius": (4, 29)}
 
 
 def temp_color(temp, units="fahrenheit"):

@@ -18,12 +18,14 @@ are unchanged. See [screen-config.md](screen-config.md#global-model) for the key
 
 ## Modules (`matrix_ui/`)
 
-- `cron.py`: `Cron`, the cron-expression matcher behind `/app/schedule` rules.
+- `cron.py`: `Cron`, the cron-expression matcher behind `/app/schedule` rules (`fires`, `active`, and `next` for the web page's preview).
 - `app.py`: `App`, the global-model controller (screen choice, rotation, power, sleep window, brightness, per-screen source overrides).
 
-- `assistant.py`: `Assistant.ask(query)` asks Claude for a structured patch to the global model, applies it to a copy,
-  validates it with `load_surface` (every screen it names, overrides merged), and writes the model file atomically;
-  `undo()` restores the previous model. `serve.py` wraps it in HTTP. See [assistant.md](assistant.md).
+- `model_store.py`: owns the model file for writers. `ModelStore.update(changes)` merges top-level keys into a copy of the
+  model, validates it (`validate_model`: the model's shape, then `load_surface` for every screen it names, overrides
+  merged), and writes the model file atomically; `undo()` restores the previous model. `serve.py` wraps it in HTTP,
+  answering the local network only, and serves `web/index.html`, the control page (plain HTML and JS, no build step).
+  See [web.md](web.md).
 - `resolver.py`: `Surface.load(path|dict)` validates the config and builds the tree.
   `Surface.render(canvas, dm, fonts, graphics, now=None, strict=False)` resolves bindings and renders
   each node into its rect. `_reported` lives on the `Surface` so errors log once, not every frame.
