@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""HTTP front end for controlling the matrix: a web page, and a JSON API for curl and scripts. Local network only.
+"""HTTP front end for controlling the matrix: the web page, and the JSON API behind it. Local network only.
 
   python serve.py                                             # 127.0.0.1:8099, edits matrix.json; open http://localhost:8099/
-  python serve.py --host 0.0.0.0                              # reachable from the LAN (and a container), no password
-  MATRIX_TOKEN=secret python serve.py --host 0.0.0.0          # same, but every request needs the token
+  python serve.py --host 0.0.0.0                              # reachable from the LAN (and a container)
   python serve.py --host 0.0.0.0 --port 8099 --port 80        # several ports: the first must bind, the rest are best-effort
 
-  GET   /                                                      -> the web page (web/index.html); never needs the token
+  GET   /                                                      -> the web page (web/index.html)
   PATCH /model {"brightness": 20, "screen": null}              -> {reply, changed, applied, model}; merges top-level keys, null removes one
   POST  /undo                                                  -> same shape, restores the previous model
   GET   /model                                                 -> the current global model
@@ -17,12 +16,10 @@
 Local network only, whatever the bind address: a request is refused (403) unless it comes from a loopback, private or
 link-local address, carries no proxy headers (a tunnel on the Pi itself), and its Host header is an IP address or a local
 name (see `is_local_host`), so neither a port forward, a tunnel nor a web page you visit (DNS rebinding) can reach it.
-There is no password unless MATRIX_TOKEN is set; then every request but the page and /health needs
-`Authorization: Bearer <token>`. Writes (POST, PATCH) from a browser page on another origin are refused too. Run
+There is no password. Writes (POST, PATCH) from a browser page on another origin are refused too. Run
 `run.py` alongside; it reloads the model file this service writes. See matrix_ui/model_store.py.
 """
 import argparse
-import hmac
 import ipaddress
 import json
 import logging
@@ -86,7 +83,7 @@ def next_firings(expr, count=3, now=None):
     return [time.strftime(fmt, lt) for lt in found]
 
 
-def make_handler(store, token=None, extra_hosts=()):
+def make_handler(store, extra_hosts=()):
     class Handler(BaseHTTPRequestHandler):
         def _send(self, status, body, content_type="application/json"):
             data = body if isinstance(body, bytes) else json.dumps(body).encode()
@@ -118,12 +115,6 @@ def make_handler(store, token=None, extra_hosts=()):
                 return True
             return False
 
-        def _authorized(self):
-            if not token:
-                return True
-            supplied = self.headers.get("Authorization", "")
-            return hmac.compare_digest(supplied, f"Bearer {token}")
-
         def _same_origin(self):
             """False for a browser request made by a page on another origin. Requests without an Origin header
             (curl, scripts) are fine; so is the page this service serves."""
@@ -152,8 +143,6 @@ def make_handler(store, token=None, extra_hosts=()):
                         return self._send(200, f.read(), "text/html; charset=utf-8")
                 except OSError:
                     return self._send(404, {"error": "web/index.html is missing"})
-            if not self._authorized():
-                return self._send(401, {"error": "unauthorized"})
             if url.path == "/model":
                 return self._send(200, store.read())
             if url.path == "/screens":
@@ -173,8 +162,6 @@ def make_handler(store, token=None, extra_hosts=()):
                 return
             if not self._same_origin():
                 return self._send(403, {"error": "cross-origin request refused"})
-            if not self._authorized():
-                return self._send(401, {"error": "unauthorized"})
             try:
                 self._body()
                 if self.path == "/undo":
@@ -190,8 +177,6 @@ def make_handler(store, token=None, extra_hosts=()):
                 return
             if not self._same_origin():
                 return self._send(403, {"error": "cross-origin request refused"})
-            if not self._authorized():
-                return self._send(401, {"error": "unauthorized"})
             if urlsplit(self.path).path != "/model":
                 return self._send(404, {"error": "not found"})
             try:
@@ -231,10 +216,9 @@ def main():
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO)
 
-    token = os.environ.get("MATRIX_TOKEN")      # optional: without it anyone on the local network can use it
     extra_hosts = tuple(h.strip().lower() for h in os.environ.get("MATRIX_ALLOWED_HOSTS", "").split(",") if h.strip())
     store = ModelStore(args.config, args.screens)
-    server, *extras = listen(args.host, args.port or [8099], make_handler(store, token, extra_hosts))
+    server, *extras = listen(args.host, args.port or [8099], make_handler(store, extra_hosts))
     for extra in extras:
         threading.Thread(target=extra.serve_forever, daemon=True).start()
     log.info("listening on %s:%s", args.host, ", ".join(str(s.server_port) for s in [server, *extras]))

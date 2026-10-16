@@ -47,7 +47,6 @@ From your laptop, `./deploy.sh` does it remotely (rsync to the Pi, retire the ol
 | `web/` | The control page (`index.html`, no build step) |
 | `deploy.sh` | Run from your laptop: syncs the repo to the Pi over SSH, removes the old `new_subway.py` `@reboot` cron entry and process, then runs `install.sh` there |
 | `install.sh` | One-shot Pi setup: packages, rgbmatrix bindings, venv, systemd services |
-| `scripts/set-password.sh` | Sets (or changes) the web page password: writes `MATRIX_TOKEN` to `/etc/led-matrix.env` on the Pi and restarts the service |
 | `run.py`, `matrix.json` | The runner and its global model: active screen, rotation, brightness, power, sleep window, per-screen source params |
 | `preview.py` | Render a screen with sample data, or live data with `--live` |
 | `tests/` | pytest suite |

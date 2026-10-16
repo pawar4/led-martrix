@@ -22,8 +22,7 @@ visit can't reach it. Details and limits are in
 or `.lan`, list it in `MATRIX_ALLOWED_HOSTS` in `/etc/led-matrix.env`.
 
 There is no password: anything on that network, guests on your wifi included, can load the page and change the matrix.
-If that's more than you want, run `sudo /opt/led-matrix/scripts/set-password.sh` (see [Access](../docs/web.md#access)).
-The connection is plain HTTP either way. Don't port-forward 80 or 8099 on your router, and don't run a tunnel or reverse
+The connection is plain HTTP. Don't port-forward 80 or 8099 on your router, and don't run a tunnel or reverse
 proxy on the Pi.
 
 The matrix runner itself stays on the Pi host (it needs GPIO), not in a container.

@@ -98,10 +98,7 @@ step "Web page config ($ENV_FILE)"
 if [ $DRY = 1 ] || [ ! -f "$ENV_FILE" ]; then
   write_root "$ENV_FILE" 600 <<EOF
 # Read by led-matrix-assistant.service. Edit, then: sudo systemctl restart led-matrix-assistant
-# The service only answers the local network. There is no password: anyone on that network can use the web page and
-# API. To require one, run: sudo $INSTALL_DIR/scripts/set-password.sh   (or set it here by hand). The page then asks for it,
-# and clients send it as: Authorization: Bearer <token>
-#MATRIX_TOKEN=choose-a-password
+# The service only answers the local network. There is no password: anyone on that network can use the web page.
 # Requests must name the Pi by IP address, a one-word name (raspberrypi) or a .local/.lan name. If your router gives it
 # another name, list it here (comma separated).
 #MATRIX_ALLOWED_HOSTS=pi.example.box
@@ -110,9 +107,8 @@ EOF
 else
   echo "keeping existing $ENV_FILE"
   if sudo grep -q '^MATRIX_TOKEN=' "$ENV_FILE" 2>/dev/null; then
-    echo "note: it sets MATRIX_TOKEN, so the page and API still ask for a password."
-    echo "      To change it: sudo $INSTALL_DIR/scripts/set-password.sh"
-    echo "      To drop it:   sudo sed -i 's/^MATRIX_TOKEN=/#&/' $ENV_FILE && sudo systemctl restart led-matrix-assistant"
+    echo "note: it sets MATRIX_TOKEN, which is no longer used: the web page has no password now, so anyone on the"
+    echo "      local network can use it. To tidy up: sudo sed -i '/^MATRIX_TOKEN=/d' $ENV_FILE"
   fi
 fi
 
@@ -167,8 +163,7 @@ step "Done"
 cat <<EOF
 Matrix runner:  sudo systemctl status led-matrix        (logs: journalctl -u led-matrix -f)
 Model file:     $INSTALL_DIR/matrix.json  (the runner follows edits)
-Web page:       http://$HOST/   (also :8099; local network only, no password unless you set one: anyone on it can use the page)
-Password:       sudo $INSTALL_DIR/scripts/set-password.sh
+Web page:       http://$HOST/   (also :8099; local network only, no password: anyone on it can use the page)
 EOF
 if [ "${REBOOT_NEEDED:-0}" = 1 ] && [ $DRY = 0 ]; then
   echo
