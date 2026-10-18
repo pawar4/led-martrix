@@ -13,8 +13,12 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 | `Column` | `gap` (0), `padding` (0) | Stacks children top to bottom |
 | `Row` | `gap` (0), `padding` (0) | Lays children left to right |
 | `Stack` | `padding` (0) | Overlays children, each at its own `x`/`y` |
+| `Scroll` | `speed` (8), `hold` (2), `length` | One child taller than the box (give it a `height`), scrolled up so the rest comes into view and clipped to the box. It rests at the top for `hold` seconds, moves at `speed` pixels a second until the child's bottom is in view, rests there for `hold` seconds, then jumps back to the top and repeats; the clock starts when the screen loads. A child that fits stays still. `length` is how much of the child is worth showing, in pixels from its top (capped at its height): bind it when the child has empty space at the bottom, such as unused cards, so the scroll ends where the content does. While a bound `length` has no data yet the child is shown at the top, still. Takes exactly one child |
 
 `padding` is an int or `[top, right, bottom, left]`.
+
+Everything inside a `Scroll` is clipped to it, nested or not, so any widget can be scrolled. Children scrolled out of view
+aren't rendered. Text that only partly shows is drawn pixel by pixel from the font file, matching the native text exactly.
 
 ## Leaves
 
@@ -27,6 +31,7 @@ Fonts are `tiny` (4x6), `small` (5x8) or `large` (6x10).
 | `TrainBadge` | `route` (required), `color`, `radius` (6) | Coloured circle with the route letter; colour defaults to the MTA route colour |
 | `TrainRow` | `route` (required), `name`, `arrivals` (list of minutes), `direction` (`N`, `S` or empty), `alert` (colour) | Badge, station name, next arrivals; `direction` draws a cyan arrow in the badge column: up (`N`, uptown) above the badge, down (`S`, downtown) below it; `alert` draws a 3px status dot at the badge's top-right corner (nothing when green, so bind it to an `mta_alerts` colour); yellow when the first is 2 min or less, "No data" when empty |
 | `ForecastSlot` | `hour`, `weather_code`, `is_day` (true), `temp`, `hour_color` (dim), `temp_color` (white) | Weather icon (moon icons for clear and mainly clear skies when `is_day` is false), hour label and temperature; sized for a 32x14 box or taller (two per row) |
+| `GameCard` | `away`, `home`, `away_score`, `home_score`, `away_color` (white), `home_color` (white), `away_accent` (dim), `home_accent` (dim), `label`, `detail`, `color` (dim) | Scoreboard card for one game, sized for a 32x27 box (two per row). A status line (`label` in `color`, centred; with a `detail` such as the game clock, `label` goes left and `detail` right), then a band per team: the abbreviation (4x6 font) and score (5x8 font) in `_color`, on a tint of the team's `_accent` colour with a 2px chip of it at the left. `color` also sets the border (at 45%) and the corners are rounded. A card with neither team draws nothing; `screens/nfl.json` puts 16 of them (eight rows of two) in a `Scroll` to show a full slate |
 | `LineChart` | `values` (list of numbers), `color` (green), `fill`, `baseline`, `baseline_color` (dim grey), `dividers` (list of indexes into `values`), `divider_color` (dim grey) | Line stretched across the box, min at the bottom and max at the top; `fill` shades under the line; `baseline` is a dashed line included in the scale; each `dividers` index gets a 1px full-height column behind the line (e.g. a day split) |
 
 | `Fill` | `color` (black) | Solid rectangle; first child of a `Stack` makes a background |
@@ -52,6 +57,7 @@ real but empty data still reads as empty (`TrainRow` says "No data" for an empty
 | `Icon` | `weather_code` | an 8x8 block (an icon picked by `name` is drawn as normal) |
 | `TrainRow` | `name`, `arrivals` | the badge, arrow and dot draw as normal; the name and arrivals lines are bars |
 | `ForecastSlot` | `hour`, `weather_code`, `temp` | an icon block and two bars |
+| `GameCard` | `away`, `home` | an empty card frame with three bars on it |
 | `LineChart` | `values` | a thin bar across the middle |
 | `ProgressBar` | `value` | a thin bar across the whole box |
 | `WrapText` | `text` | two bars, the second shorter |

@@ -1,0 +1,365 @@
+{
+  "nfl": {
+    "date_label": "Oct 18",
+    "message": "",
+    "length": 145,
+    "games": [
+      {
+        "away": "HOU",
+        "away_score": "31",
+        "away_color": "white",
+        "away_accent": [
+          235,
+          0,
+          40
+        ],
+        "home": "JAX",
+        "home_score": "28",
+        "home_color": [
+          150,
+          150,
+          150
+        ],
+        "home_accent": [
+          0,
+          186,
+          217
+        ],
+        "label": "Q4",
+        "detail": "7:46",
+        "status_color": "green"
+      },
+      {
+        "away": "CHI",
+        "away_score": "10",
+        "away_color": [
+          150,
+          150,
+          150
+        ],
+        "away_accent": [
+          41,
+          105,
+          217
+        ],
+        "home": "ATL",
+        "home_score": "17",
+        "home_color": "white",
+        "home_accent": [
+          217,
+          32,
+          62
+        ],
+        "label": "HALF",
+        "detail": "",
+        "status_color": "green"
+      },
+      {
+        "away": "BAL",
+        "away_score": "24",
+        "away_color": "white",
+        "away_accent": [
+          80,
+          35,
+          217
+        ],
+        "home": "CLE",
+        "home_score": "20",
+        "home_color": [
+          150,
+          150,
+          150
+        ],
+        "home_accent": [
+          217,
+          128,
+          24
+        ],
+        "label": "FINAL",
+        "detail": "",
+        "status_color": [
+          150,
+          150,
+          150
+        ]
+      },
+      {
+        "away": "LV",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          204,
+          213,
+          217
+        ],
+        "home": "BUF",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          0,
+          78,
+          217
+        ],
+        "label": "4:25 PM",
+        "detail": "",
+        "status_color": "cyan"
+      },
+      {
+        "away": "DET",
+        "away_score": "27",
+        "away_color": "white",
+        "away_accent": [
+          0,
+          118,
+          217
+        ],
+        "home": "MIN",
+        "home_score": "24",
+        "home_color": [
+          150,
+          150,
+          150
+        ],
+        "home_accent": [
+          100,
+          60,
+          217
+        ],
+        "label": "Q3",
+        "detail": "2:11",
+        "status_color": "green"
+      },
+      {
+        "away": "NYJ",
+        "away_score": "17",
+        "away_color": "white",
+        "away_accent": [
+          20,
+          120,
+          80
+        ],
+        "home": "NE",
+        "home_score": "17",
+        "home_color": "white",
+        "home_accent": [
+          0,
+          60,
+          200
+        ],
+        "label": "Q4",
+        "detail": "0:42",
+        "status_color": "green"
+      },
+      {
+        "away": "SF",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          217,
+          20,
+          40
+        ],
+        "home": "SEA",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          0,
+          217,
+          80
+        ],
+        "label": "4:05 PM",
+        "detail": "",
+        "status_color": "cyan"
+      },
+      {
+        "away": "KC",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          217,
+          20,
+          40
+        ],
+        "home": "DEN",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          217,
+          90,
+          20
+        ],
+        "label": "4:25 PM",
+        "detail": "",
+        "status_color": "cyan"
+      },
+      {
+        "away": "DAL",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          0,
+          80,
+          200
+        ],
+        "home": "GB",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          30,
+          140,
+          70
+        ],
+        "label": "8:20 PM",
+        "detail": "",
+        "status_color": "cyan"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      },
+      {
+        "away": "",
+        "away_score": "",
+        "away_color": "white",
+        "away_accent": [
+          150,
+          150,
+          150
+        ],
+        "home": "",
+        "home_score": "",
+        "home_color": "white",
+        "home_accent": [
+          150,
+          150,
+          150
+        ],
+        "label": "",
+        "detail": "",
+        "status_color": "white"
+      }
+    ]
+  }
+}

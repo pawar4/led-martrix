@@ -15,7 +15,8 @@ pytest tests/
 python preview.py screens/subway.json              # emulator in the browser, http://localhost:8888
 python preview.py screens/subway.json --png out.png   # one frame, saved as a PNG
 python preview.py screens/weather.json             # daylight bar + next 18 hours in 3-hour steps (set "day" to today/tomorrow for a fixed day)
-python preview.py screens/markets.json             # price + filled chart (set "range" to intraday or 3day in its source)
+python preview.py screens/markets.json             # price + filled chart (set "range" to intraday, 3day or 1month in its source)
+python preview.py screens/nfl.json                 # the day's NFL games as team-coloured cards, slowly scrolling through the whole slate (set "day" in its source)
 python preview.py screens/trivia.json             # Jeopardy-style clue, timer bar, then the answer (clues in screens/trivia.clues.json, or set "provider": "opentdb" in its source for online questions)
 python preview.py screens/guest.json              # "guest leaves in" countdown over a picture (put it at assets/tanner.png, set the date in the screen's "target")
 python serve.py                                     # web page at http://localhost:8099/ to edit matrix.json (run alongside run.py)

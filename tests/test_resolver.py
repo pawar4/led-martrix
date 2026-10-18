@@ -1,6 +1,6 @@
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -46,10 +46,22 @@ FONTS = {n: FakeFont() for n in ("tiny", "small", "large")}
 NOW = lambda: datetime(2026, 1, 1, 9, 5)
 
 
-def render(config, data=None):
+class FakeTinyFont(FakeFont):
+    """The real 4x6 font's metrics."""
+    height = 6
+    baseline = 5
+
+    def CharacterWidth(self, c):
+        return 4
+
+
+TINY_FONTS = {**FONTS, "tiny": FakeTinyFont()}
+
+
+def render(config, data=None, fonts=FONTS):
     surface = Surface.load(config)
     canvas, gfx = FakeCanvas(), FakeGraphics()
-    surface.render(canvas, DataModel(data or {}), FONTS, gfx, now=NOW, strict=True)
+    surface.render(canvas, DataModel(data or {}), fonts, gfx, now=NOW, strict=True)
     return canvas, gfx
 
 
@@ -202,9 +214,210 @@ def test_markets_sample_screen_renders():
     canvas, gfx = render(os.path.join(ROOT, "screens/markets.json"), data)
     texts = {t[3]: t for t in gfx.texts}
     assert texts["SPY"][2] == (255, 255, 255)
-    assert texts["+0.60%"][2] == (0, 220, 0)
-    chart = {xy: c for xy, c in canvas.pixels.items() if xy[1] >= 20 and c == (255, 255, 255)}
+    assert texts["1M"][2] == COLORS["dim"]
+    assert texts["+4.91%"][2] == (0, 220, 0)
+    chart = {xy: c for xy, c in canvas.pixels.items() if xy[1] >= 17 and c == (255, 255, 255)}     # below the 8+9px header
     assert sorted({x for x, _ in chart}) == list(range(64))         # one connected line across the width
+
+
+def _nfl_render(data):
+    return render(os.path.join(ROOT, "screens/nfl.json"), data, TINY_FONTS)
+
+
+def test_nfl_sample_screen_draws_a_card_per_game():
+    data = json.load(open(os.path.join(ROOT, "screens/nfl.sample_data.json")))
+    canvas, gfx = _nfl_render(data)
+    texts = [t for t in gfx.texts if t[3]]
+    assert [t[3] for t in texts[:2]] == ["NFL", "Oct 18"]
+    at = lambda text: next(t for t in texts if t[3] == text)
+    # card 0 sits at (0, 8) and is 32x27: label and clock on the status line, then a row per team
+    assert [at(t)[:2] for t in ("Q4", "7:46")] == [(2, 15), (14, 15)]          # the clock is right-aligned
+    assert [at(t)[:2] for t in ("HOU", "31", "JAX", "28")] == [(5, 23), (21, 24), (5, 31), (21, 32)]
+    assert (at("HOU")[2], at("31")[2], at("JAX")[2], at("28")[2]) == (
+        COLORS["white"], COLORS["white"], (150, 150, 150), (150, 150, 150))      # the team that is behind is grey
+    assert (at("Q4")[2], at("HALF")[2], at("FINAL")[2], at("4:25 PM")[2]) == (
+        COLORS["green"], COLORS["green"], (150, 150, 150), COLORS["cyan"])
+    assert at("HALF")[0] == 32 + 2 + (28 - 16) // 2          # no clock: the label is centred in the second card
+    assert canvas.pixels[(1, 18)] == (235, 0, 40)            # HOU's chip: its black primary falls back to the red
+    assert canvas.pixels[(10, 20)] == (42, 0, 7)             # and its row is tinted with the same colour
+    assert canvas.pixels[(0, 15)] == (0, 99, 0)              # live: a green border
+    assert canvas.pixels[(32 + 31, 44)] == (0, 90, 90)       # not started: teal
+    assert (0, 8) not in canvas.pixels                       # the corners are rounded
+
+
+def test_nfl_screen_leaves_unused_cards_empty_and_shows_no_loading_placeholder():
+    from datetime import date
+    from matrix_ui.providers import BLANK_GAME, nfl_frame
+    game = {**BLANK_GAME, "away": "HOU", "home": "JAX", "label": "FINAL", "status_color": "green"}
+    canvas, _ = _nfl_render({"nfl": nfl_frame([game], date(2026, 10, 18), 16, 2, 29)})
+    assert any(x < 32 and 8 <= y < 35 for x, y in canvas.pixels)                         # the first card is there
+    assert not any((x >= 32 and y >= 8) or y >= 37 for x, y in canvas.pixels)            # and every other card is not
+    canvas, gfx = _nfl_render({"nfl": nfl_frame([], date(2026, 10, 20), 16, 2, 29)})
+    assert [t[3] for t in gfx.texts if t[3]] == ["NFL", "Oct 20", "No games"]
+    assert all(y < 8 for _, y in canvas.pixels)                                            # nothing but the header band
+
+
+def test_nfl_screen_shows_card_placeholders_until_the_first_fetch_and_holds_still():
+    canvas, gfx = _nfl_render({})
+    assert not any(t[3] for t in gfx.texts if t[0] > 0 and t[1] > 8)       # no text on the cards
+    for x, y in ((0, 15), (32, 15), (0, 44), (32, 44)):                     # each card is drawn as an empty frame
+        assert canvas.pixels[(x, y)] == (30, 33, 45)
+
+
+def test_nfl_screen_scrolls_through_every_game_and_stops_where_the_games_end():
+    data = json.load(open(os.path.join(ROOT, "screens/nfl.sample_data.json")))
+    assert data["nfl"]["length"] == 5 * 29 and len(data["nfl"]["games"]) == 16     # nine games: five rows of two, 16 cards
+    surface = Surface.load(os.path.join(ROOT, "screens/nfl.json"))
+    dm = DataModel(data)
+    t0 = datetime(2026, 10, 18, 13)
+
+    def shown(seconds):
+        canvas, gfx = FakeCanvas(), FakeGraphics()
+        surface.render(canvas, dm, TINY_FONTS, gfx, now=lambda: t0 + timedelta(seconds=seconds), strict=True)
+        return canvas, [t[3] for t in gfx.texts if t[3]]
+
+    _, first = shown(0)
+    assert "HOU" in first and "DAL" not in first
+    assert shown(1.9)[1] == first                                   # rests at the top for `hold` seconds
+    assert shown(6)[1] != first                                     # then moves
+    canvas, last = shown(13.5)      # 89 pixels to go at 8 a second after 2 seconds' rest: the end is 13.1 seconds in
+    assert "DAL" in last and "HOU" not in last
+    assert shown(15)[1] == last                                     # it rests there for `hold` seconds too
+    assert shown(15.2)[1] == first                                  # before starting over
+    assert max(y for _, y in canvas.pixels) == 61                   # the last row of cards ends just above the bottom edge
+    assert {c for (x, y), c in canvas.pixels.items() if y < 8} == {(0, 28, 70)}      # cards never spill into the header
+
+
+# ---- scroll ----
+
+T0 = datetime(2026, 10, 18, 13)
+
+
+def render_at(surface, seconds, data=None, fonts=FONTS, graphics=None):
+    """Render `surface` as it looks `seconds` after its first frame (render once at 0 to start its clock)."""
+    canvas = FakeCanvas()
+    gfx = graphics or FakeGraphics()
+    surface.render(canvas, DataModel(data or {}), fonts, gfx, now=lambda: T0 + timedelta(seconds=seconds), strict=True)
+    return canvas, gfx
+
+
+def stripes(**scroll):
+    """A 20-pixel window at y 10 onto 60 pixels of stripes: red for 0-19, green for 20-39 and blue for 40-59."""
+    return Surface.load(screen(
+        {"id": "root", "component": "Stack", "children": ["view"]},
+        {"id": "view", "component": "Scroll", "y": 10, "height": 20, **scroll, "children": ["col"]},
+        {"id": "col", "component": "Column", "height": 60, "children": ["a", "b", "c"]},
+        {"id": "a", "component": "Fill", "color": "red"},
+        {"id": "b", "component": "Fill", "color": "green"},
+        {"id": "c", "component": "Fill", "color": "blue"}))
+
+
+def test_scroll_offset_rests_moves_rests_and_repeats():
+    from matrix_ui.catalog import scroll_offset
+    at = lambda t: scroll_offset(t, 40, 10, 2)          # 40 pixels at 10 a second, 2 seconds' rest each end: 8 seconds
+    assert [at(t) for t in (0, 1.9, 2, 3, 5.9, 6, 7.9)] == [0, 0, 0, 10, 39, 40, 40]
+    assert [at(t) for t in (8, 11, 16)] == [0, 10, 0]   # then it starts over
+    assert [scroll_offset(t, 0, 10, 2) for t in (0, 5)] == [0, 0]           # nothing to scroll
+    assert scroll_offset(5, -30, 10, 2) == 0
+
+
+def test_scroll_shows_a_window_of_its_child_that_moves_up_and_never_draws_outside_it():
+    surface = stripes(speed=10, hold=1)
+    for seconds, top, bottom in ((0, "red", "red"), (0.9, "red", "red"), (3, "green", "green"), (4, "green", "blue"),
+                                 (5, "blue", "blue"), (5.9, "blue", "blue"), (6.5, "red", "red")):       # 6 seconds all told
+        canvas, _ = render_at(surface, seconds)
+        assert {y for _, y in canvas.pixels} == set(range(10, 30))          # only the window is painted, all of it
+        assert (canvas.pixels[(0, 10)], canvas.pixels[(63, 29)]) == (COLORS[top], COLORS[bottom])
+
+
+def test_scroll_length_ends_the_scroll_where_the_content_does():
+    capped = stripes(speed=10, hold=1, length=40)          # the blue stripe is not worth showing
+    render_at(capped, 0)
+    for seconds in (2.5, 3.2, 4.5):                             # 20 pixels to go: at the end from 3 seconds, then back to the start
+        assert COLORS["blue"] not in render_at(capped, seconds)[0].pixels.values()
+    assert render_at(capped, 3.2)[0].pixels[(0, 29)] == COLORS["green"]
+    assert render_at(capped, 4.5)[0].pixels[(0, 10)] == COLORS["red"]
+    overlong = stripes(speed=10, hold=1, length=500)            # more than there is: it stops at the child's end
+    render_at(overlong, 0)
+    assert render_at(overlong, 5)[0].pixels[(0, 29)] == COLORS["blue"]
+
+
+def test_scroll_with_a_bound_length_that_has_no_data_yet_shows_the_top_and_stays_put():
+    surface = stripes(speed=10, hold=1, length={"path": "/len"})
+    render_at(surface, 0)
+    canvas, _ = render_at(surface, 3)
+    assert (canvas.pixels[(0, 10)], canvas.pixels[(0, 29)]) == (COLORS["red"], COLORS["red"])
+    canvas, _ = render_at(surface, 3, {"len": 60})              # data arrived: the clock starts now, so this is still the start
+    assert canvas.pixels[(0, 29)] == COLORS["red"]
+    assert render_at(surface, 5.5, {"len": 60})[0].pixels[(0, 29)] == COLORS["green"]      # 2.5 seconds on: 15 pixels up
+
+
+def test_scroll_leaves_a_child_that_fits_alone():
+    surface = Surface.load(screen(
+        {"id": "view", "component": "Scroll", "children": ["col"]},
+        {"id": "col", "component": "Column", "height": 40, "children": ["a"]},
+        {"id": "a", "component": "Fill", "color": "red"}, root="view"))
+    render_at(surface, 0)
+    assert render_at(surface, 0)[0].pixels == render_at(surface, 9)[0].pixels
+    assert {y for _, y in render_at(surface, 9)[0].pixels} == set(range(40))
+
+
+def test_scroll_takes_exactly_one_child():
+    with pytest.raises(ConfigError, match="at most 1 child"):
+        Surface.load(screen({"id": "s", "component": "Scroll", "children": ["a", "b"]},
+                            {"id": "a", "component": "Fill"}, {"id": "b", "component": "Fill"}, root="s"))
+    for bad in ({"speed": 0}, {"speed": "fast"}, {"hold": -1}, {"length": 1.5}):
+        with pytest.raises(ConfigError, match="prop"):
+            Surface.load(screen({"id": "s", "component": "Scroll", **bad}, root="s"))
+
+
+def test_nested_scrolls_clip_to_the_smaller_window():
+    surface = Surface.load(screen(
+        {"id": "root", "component": "Stack", "children": ["outer"]},
+        {"id": "outer", "component": "Scroll", "y": 10, "height": 20, "children": ["tall"]},
+        {"id": "tall", "component": "Stack", "height": 60, "children": ["inner"]},
+        {"id": "inner", "component": "Scroll", "children": ["fill"]},          # its window is the whole 60 pixels
+        {"id": "fill", "component": "Fill", "height": 120, "color": "red"}))
+    canvas, _ = render_at(surface, 0)
+    assert {y for _, y in canvas.pixels} == set(range(10, 30))
+
+
+def _text_scroll():
+    return Surface.load(screen(
+        {"id": "root", "component": "Stack", "children": ["view"]},
+        {"id": "view", "component": "Scroll", "y": 10, "height": 20, "speed": 10, "hold": 0, "children": ["tall"]},
+        {"id": "tall", "component": "Stack", "height": 60, "children": ["top", "low"]},
+        {"id": "top", "component": "Text", "x": 4, "height": 6, "font": "tiny", "text": "HI"},
+        {"id": "low", "component": "Text", "x": 4, "y": 40, "height": 6, "font": "tiny", "text": "LO"}))
+
+
+class SpyGraphics(FakeGraphics):
+    def __init__(self):
+        super().__init__()
+        self.canvases = []
+
+    def DrawText(self, canvas, *args):
+        self.canvases.append(canvas)
+        return super().DrawText(canvas, *args)
+
+
+def test_text_in_a_scroll_is_drawn_natively_when_in_view_and_pixel_by_pixel_when_it_straddles_the_edge():
+    surface = _text_scroll()
+    render_at(surface, 0, fonts=TINY_FONTS)
+    canvas, gfx = render_at(surface, 3, fonts=TINY_FONTS, graphics=SpyGraphics())      # 30 pixels up: "LO" is at y 20, in view
+    assert [t[3] for t in gfx.texts] == ["LO"] and gfx.canvases == [canvas]            # native, on the real canvas
+    assert canvas.pixels == {}                                                          # (the fake draws no pixels)
+
+    canvas, gfx = render_at(surface, 0.35, fonts=TINY_FONTS, graphics=SpyGraphics())   # 3 pixels up: "HI" is cut by the top edge
+    from matrix_ui.bdf import load_bdf, text_pixels
+    from matrix_ui.backend import font_file
+    glyphs = load_bdf(font_file("tiny"))
+    assert gfx.texts == []
+    assert set(canvas.pixels) == {xy for xy in text_pixels(glyphs, "HI", 4, 12) if xy[1] >= 10}      # the part below the edge
+    assert len(canvas.pixels) < len(set(text_pixels(glyphs, "HI", 4, 12))) and set(canvas.pixels.values()) == {COLORS["white"]}
+
+    canvas, gfx = render_at(surface, 1, fonts=TINY_FONTS, graphics=SpyGraphics())      # 10 pixels up: "HI" is out of view
+    assert gfx.texts == [] and canvas.pixels == {}
 
 
 def test_line_chart_scales_min_to_bottom_and_max_to_top():

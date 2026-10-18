@@ -7,9 +7,10 @@ import json
 from datetime import datetime
 
 from .catalog import LAYOUT_PROPS, REGISTRY, v_int
-from .layout import Rect
+from .layout import Rect, touches
 
 RESERVED = {"id", "component", "children"}
+OVERDRAW = 2        # pixels a widget may draw beyond its rect (a speech bubble's tail)
 
 
 class ConfigError(ValueError):
@@ -28,6 +29,7 @@ class Node:
         self.layout = layout        # width/height/x/y literals
         self.child_ids = child_ids
         self.children = []
+        self.state = {}             # what a widget keeps between frames (a Scroll's start time); gone when the screen reloads
 
 
 class RenderContext:
@@ -39,6 +41,11 @@ class RenderContext:
         self.now = now
         self.strict = strict
         self._reported = reported
+
+    @property
+    def clip(self):
+        """The Rect drawing is limited to (inside a `Scroll`), or None."""
+        return getattr(self.canvas, "clip", None)
 
     def resolve_props(self, node):
         resolved = {}
@@ -64,6 +71,9 @@ class RenderContext:
                 if _is_binding(value) and "path" in value and self.dm.get(value["path"]) is None}
 
     def render_node(self, node, rect):
+        clip = self.clip
+        if clip is not None and not touches(rect, clip, OVERDRAW):
+            return          # scrolled out of view
         try:
             resolved = self.resolve_props(node)
             waiting = self.missing_data(node) & set(node.widget.loading_props)
@@ -160,6 +170,8 @@ def _build_node(comp):
         raise ConfigError(f"{cid}: {comp['component']} cannot have children")
     if not isinstance(child_ids, list) or not all(isinstance(c, str) for c in child_ids):
         raise ConfigError(f"{cid}: 'children' must be a list of component ids")
+    if widget.max_children is not None and len(child_ids) > widget.max_children:
+        raise ConfigError(f"{cid}: {comp['component']} takes at most {widget.max_children} child, got {len(child_ids)}")
 
     allowed = set(widget.props) | set(LAYOUT_PROPS) | RESERVED
     unknown = sorted(set(comp) - allowed)

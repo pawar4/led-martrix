@@ -3,14 +3,19 @@
   "brightness": 50,
   "schedule": [
     {
+      "screen": "nfl",
+      "at": "0 */2 * * * 0",
+      "for": 30
+    },
+    {
       "screen": "weather",
       "at": "30 * * * * *",
-      "for": 15
+      "for": 20
     },
     {
       "screen": "markets",
-      "at": "45 * * * * *",
-      "for": 15
+      "at": "50 * * * * *",
+      "for": 10
     },
     {
       "screen": "subway"
@@ -21,7 +26,7 @@
       "sources": {
         "/market": {
           "symbol": "SPY",
-          "range": "3day",
+          "range": "1month",
           "label": "SPY"
         }
       }

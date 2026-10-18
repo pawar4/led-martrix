@@ -90,6 +90,14 @@ def test_screen_without_sources_loads():
     ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "start_hour": 24}, "0 to 23"),
     ({"type": "weather_forecast", "mount": "/f", "lat": 1, "lon": 2, "start_hour": 20, "end_hour": 6}, "before start_hour"),
     ({"type": "mta_arrivals", "mount": "/t", "stations": {"E": {"stop_id": "F09"}}}, "exactly"),
+    ({"type": "nfl_scores", "mount": "/n", "day": "now"}, "got 'now'"),
+    ({"type": "nfl_scores", "mount": "/n", "day": "friday"}, "YYYY-MM-DD"),
+    ({"type": "nfl_scores", "mount": "/n", "slots": 0}, "game cards"),
+    ({"type": "nfl_scores", "mount": "/n", "slots": 33}, "game cards"),
+    ({"type": "nfl_scores", "mount": "/n", "columns": 5}, "cards per row"),
+    ({"type": "nfl_scores", "mount": "/n", "row_height": 0}, "row height"),
+    ({"type": "nfl_scores", "mount": "/n", "per_page": 4}, "unknown keys"),
+    ({"type": "nfl_scores", "mount": "/n", "interval": 0}, "positive"),
 ])
 def test_bad_source_specs_are_rejected(spec, message):
     with pytest.raises(ConfigError, match=message):
@@ -201,8 +209,21 @@ def test_quote_3day_keeps_last_three_days_and_skips_gaps():
     assert len(q["dividers"]) == 2 and all(q["dividers"][i] > 0 for i in range(2))   # one split per day boundary
 
 
+def test_quote_1month_measures_from_first_point_and_splits_on_weeks():
+    from matrix_ui.providers import quote_from_chart
+    monday = 1_759_761_000      # Mon 2025-10-06 14:30 UTC
+    days = [0, 1, 2, 3, 4, 7, 8, 9, 10, 11, 14, 15]     # weekdays over three weeks
+    ts = [monday + d * 86400 for d in days]
+    closes = [100 + i for i in range(len(days))]
+    q = quote_from_chart("X", None, "1month", {"regularMarketPrice": 112.0, "gmtoffset": 0}, ts, closes)
+    assert q["range_label"] == "1M" and q["values"] == closes
+    assert q["baseline"] == 100 and q["change_label"] == "+12.00%" and q["color"] == "green"
+    assert q["dividers"] == [5, 10]         # the first point of the 2nd and 3rd weeks, not of every day
+
+
 def test_market_quote_source_validation():
     assert build_source({"type": "market_quote", "mount": "/m", "symbol": "^GSPC", "range": "3day"}).mount == "/m"
+    assert build_source({"type": "market_quote", "mount": "/m", "symbol": "^GSPC", "range": "1month"}).mount == "/m"
     with pytest.raises(ConfigError, match="intraday"):
         build_source({"type": "market_quote", "mount": "/m", "symbol": "X", "range": "week"})
     with pytest.raises(ConfigError, match="'symbol' is required"):
@@ -527,3 +548,189 @@ def test_daylight_fetcher_fetches_sun_times_once():
 def test_first_sentence_stops_at_a_line_break_too():
     from matrix_ui.providers import first_sentence
     assert first_sentence("[7] skips 52 St\nAll trains board here.") == "[7] skips 52 St."
+
+
+# ---- nfl scores ----
+
+def _espn_event(away, home, away_score, home_score, state="in", name="STATUS_IN_PROGRESS", period=3, completed=False,
+                date="2026-10-18T17:00Z", clock="7:46"):
+    side = lambda abbr, kind, score, color: {"homeAway": kind, "score": str(score),
+                                              "team": {"abbreviation": abbr, "color": color, "alternateColor": "000000"}}
+    return {"date": date,
+            "status": {"period": period, "displayClock": clock,
+                       "type": {"name": name, "state": state, "completed": completed}},
+            "competitions": [{"competitors": [side(home, "home", home_score, "0000ff"),
+                                              side(away, "away", away_score, "ff0000")]}]}
+
+
+@pytest.mark.parametrize("state, name, period, completed, expected", [
+    ("pre", "STATUS_SCHEDULED", 0, False, ("1:05 PM", "", "cyan")),
+    ("in", "STATUS_IN_PROGRESS", 1, False, ("Q1", "7:46", "green")),
+    ("in", "STATUS_END_PERIOD", 2, False, ("Q2", "7:46", "green")),
+    ("in", "STATUS_HALFTIME", 2, False, ("HALF", "", "green")),
+    ("in", "STATUS_IN_PROGRESS", 5, False, ("OT", "7:46", "green")),
+    ("in", "STATUS_IN_PROGRESS", 6, False, ("2OT", "7:46", "green")),
+    ("post", "STATUS_FINAL", 4, True, ("FINAL", "", [150, 150, 150])),
+    ("post", "STATUS_FINAL", 5, True, ("F/OT", "", [150, 150, 150])),
+    ("in", "STATUS_DELAYED", 2, False, ("DLY", "", "orange")),
+    ("post", "STATUS_POSTPONED", 0, False, ("PPD", "", "orange")),
+    ("post", "STATUS_SOMETHING_NEW", 0, False, ("ODDLY", "", "orange")),     # unknown, not completed: first five letters
+])
+def test_nfl_status_labels(state, name, period, completed, expected):
+    from datetime import datetime
+    from matrix_ui.providers import nfl_status
+    status = {"period": period, "displayClock": "7:46",
+              "type": {"name": name, "state": state, "completed": completed, "description": "Oddly"}}
+    assert nfl_status(status, datetime(2026, 10, 18, 13, 5)) == expected
+
+
+def test_kickoff_label_fits_a_card_at_any_hour():
+    from datetime import datetime
+    from matrix_ui.providers import kickoff_label
+    at = lambda h, m: kickoff_label(datetime(2026, 10, 18, h, m))
+    assert [at(9, 30), at(13, 0), at(20, 20)] == ["9:30 AM", "1:00 PM", "8:20 PM"]
+    assert [at(10, 0), at(12, 30), at(0, 5)] == ["10:00AM", "12:30PM", "12:05AM"]      # past 7 characters: no space
+    assert all(len(at(h, 45)) <= 7 for h in range(24))
+
+
+def test_team_accent_keeps_the_hue_and_brightens_dark_team_colours():
+    from matrix_ui.providers import GREY, team_accent
+    assert team_accent({"color": "0b1c3a", "alternateColor": "e64100"}) == [41, 105, 217]     # Bears navy, lifted to a blue
+    assert team_accent({"color": "ffb612", "alternateColor": "000000"}) == [255, 182, 18]     # already bright: unchanged
+    assert team_accent({"color": "000000", "alternateColor": "ffb612"}) == [255, 182, 18]     # black: the other colour
+    assert max(team_accent({"color": "000000", "alternateColor": "a5acaf"})) >= 216           # silver is lifted too
+    for junk in ({}, {"color": "000000"}, {"color": "nothex"}, {"color": None}):
+        assert team_accent(junk) == GREY
+
+
+def test_nfl_game_shows_scores_only_once_started_and_greys_the_team_that_is_behind():
+    from datetime import datetime, timezone
+    from matrix_ui.providers import GREY, kickoff_label, nfl_game
+    pre = nfl_game(_espn_event("CHI", "ATL", 0, 0, state="pre", name="STATUS_SCHEDULED", period=0))
+    kickoff = kickoff_label(datetime(2026, 10, 18, 17, 0, tzinfo=timezone.utc).astimezone())      # the machine's clock
+    assert pre == {"away": "CHI", "away_score": "", "away_color": "white", "away_accent": [255, 0, 0],
+                   "home": "ATL", "home_score": "", "home_color": "white", "home_accent": [0, 0, 255],
+                   "label": kickoff, "detail": "", "status_color": "cyan"}
+    live = nfl_game(_espn_event("HOU", "JAX", 31, 28, period=4))
+    assert (live["away_score"], live["home_score"], live["away_color"], live["home_color"]) == ("31", "28", "white", GREY)
+    assert (live["label"], live["detail"], live["status_color"]) == ("Q4", "7:46", "green")
+    home_ahead = nfl_game(_espn_event("TEN", "IND", 13, 27, state="post", name="STATUS_FINAL", period=4, completed=True))
+    assert (home_ahead["away_color"], home_ahead["home_color"], home_ahead["label"]) == (GREY, "white", "FINAL")
+    tied = nfl_game(_espn_event("NYJ", "NE", 17, 17))
+    assert (tied["away_color"], tied["home_color"]) == ("white", "white")
+
+
+def test_fetch_nfl_games_asks_for_the_day_and_orders_by_kickoff(monkeypatch):
+    import io
+    import json as _json
+    from datetime import date
+    from matrix_ui import providers
+    events = [_espn_event("DAL", "GB", 0, 0, state="pre", name="STATUS_SCHEDULED", period=0, date="2026-10-19T00:20Z"),
+              _espn_event("HOU", "JAX", 31, 28, period=4, date="2026-10-18T13:30Z"),
+              _espn_event("CHI", "ATL", 0, 0, state="pre", name="STATUS_SCHEDULED", period=0, date="2026-10-18T17:00Z")]
+    seen = []
+    monkeypatch.setattr(providers.urllib.request, "urlopen",
+                        lambda url, timeout: seen.append(url) or io.StringIO(_json.dumps({"events": events})))
+    games = providers.fetch_nfl_games(date(2026, 10, 18))
+    assert "dates=20261018" in seen[0]
+    assert [g["away"] for g in games] == ["HOU", "CHI", "DAL"]
+
+
+def test_nfl_frame_lists_every_game_padded_with_blanks_and_says_how_far_the_rows_reach():
+    from datetime import date
+    from matrix_ui.providers import BLANK_GAME, nfl_frame
+    games = [{**BLANK_GAME, "away": f"T{i}"} for i in range(5)]
+    day = date(2026, 10, 5)
+    frame = nfl_frame(games, day, 8, 2, 29)
+    assert (frame["date_label"], frame["message"]) == ("Oct 5", "")
+    assert frame["games"] == games + [BLANK_GAME] * 3           # padded: no card is left without data
+    assert frame["length"] == 3 * 29                           # five games in two columns: three rows
+    assert nfl_frame(games[:4], day, 8, 2, 29)["length"] == 2 * 29
+    assert nfl_frame(games, day, 3, 2, 29)["games"] == games[:3]    # more games than cards: the extras are left off
+    assert nfl_frame(games, day, 3, 2, 29)["length"] == 2 * 29
+    empty = nfl_frame([], day, 4, 2, 29)
+    assert (empty["message"], empty["length"], empty["games"]) == ("No games", 0, [BLANK_GAME] * 4)
+
+
+def test_nfl_source_publishes_the_games_and_shares_fetches():
+    from matrix_ui.providers import NflScoresSource
+    cache, calls = FetchCache(), []
+    games = [{"away": f"T{i}"} for i in range(3)]
+
+    def fetch(day):
+        calls.append(day)
+        return games
+
+    def run():
+        dm = DataModel()
+        src = NflScoresSource("2026-10-18", 4, 2, 29, 60, "/nfl", fetch=fetch, cache=cache).start(dm)
+        try:
+            assert wait_for(lambda: dm.get("/nfl/length") is not None)
+        finally:
+            src.stop()
+        return dm
+
+    dm = run()
+    assert [dm.get(f"/nfl/games/{i}/away") for i in range(3)] == ["T0", "T1", "T2"]
+    assert dm.get("/nfl/length") == 2 * 29 and len(dm.get("/nfl/games")) == 4
+    assert len(calls) == 1 and calls[0].isoformat() == "2026-10-18"
+    run()
+    assert len(calls) == 1          # a restarted source reuses the scores while they are fresh
+
+
+def test_nfl_source_refetches_once_the_scores_are_stale_and_publishes_them_again():
+    from matrix_ui.providers import NflScoresSource
+    scores = iter([[{"away": "OLD"}], [{"away": "NEW"}]])
+    dm = DataModel()
+    src = NflScoresSource("2026-10-18", 2, 2, 29, 0.05, "/nfl", fetch=lambda day: next(scores), cache=FetchCache()).start(dm)
+    try:
+        assert wait_for(lambda: dm.get("/nfl/games/0/away") == "NEW")
+    finally:
+        src.stop()
+
+
+def test_nfl_source_keeps_the_last_scores_when_a_fetch_fails_and_does_not_hammer_the_server():
+    from matrix_ui.providers import NflScoresSource
+    cache, calls = FetchCache(), []
+
+    def fetch(day):
+        calls.append(1)
+        if len(calls) > 1:
+            raise OSError("offline")
+        return [{"away": "HOU"}]
+
+    dm = DataModel()
+    src = NflScoresSource("2026-10-18", 2, 2, 29, 0.1, "/nfl", fetch=fetch, cache=cache).start(dm)
+    try:
+        assert wait_for(lambda: len(calls) >= 3, timeout=3)         # it goes on trying, `interval` apart
+        time.sleep(0.3)
+        assert dm.get("/nfl/games/0/away") == "HOU"                # and the last scores stay on screen
+    finally:
+        src.stop()
+    assert len(calls) <= 12         # about one try per 0.1s, not one per loop
+
+    failing = NflScoresSource("2026-10-18", 2, 2, 29, 60, "/nfl", fetch=lambda day: 1 / 0, cache=FetchCache())
+    dm = DataModel()
+    failing.start(dm)
+    time.sleep(0.1)
+    failing.stop()
+    assert dm.get("/nfl") is None   # nothing to show yet, so the screen keeps its loading state
+
+
+def test_nfl_screen_declares_its_source_and_has_a_card_for_every_slot_in_the_grid():
+    config = json.load(open(os.path.join(ROOT, "screens", "nfl.json")))
+    (source,) = Surface.load(config).sources
+    assert (source.mount, source.slots, source.columns, source.row_height) == ("/nfl", 16, 2, 29)
+    assert sum(c["component"] == "GameCard" for c in config["components"]) == source.slots
+    by_id = {c["id"]: c for c in config["components"]}
+    rows = by_id["grid"]["children"]
+    assert len(rows) * source.columns == source.slots and all(len(by_id[r]["children"]) == source.columns for r in rows)
+    assert source.row_height == card_height(config) + by_id["grid"]["gap"]      # the source's row pitch matches the layout
+
+
+def card_height(config):
+    """Height of a card in the screen's grid: the grid's height shared out among its rows."""
+    by_id = {c["id"]: c for c in config["components"]}
+    grid = by_id["grid"]
+    rows = len(grid["children"])
+    return (grid["height"] - grid["gap"] * (rows - 1)) // rows

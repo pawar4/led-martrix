@@ -92,7 +92,7 @@
       "mount": "/market",
       "symbol": "SPY",
       "label": "SPY",
-      "range": "intraday",
+      "range": "1month",
       "interval": 60
     }
   ]

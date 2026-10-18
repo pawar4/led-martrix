@@ -9,6 +9,18 @@ def inset(rect, padding):
     return Rect(rect.x + l, rect.y + t, max(0, rect.w - l - r), max(0, rect.h - t - b))
 
 
+def intersect(a, b):
+    """The area two rects share (zero-sized when they don't overlap)."""
+    x, y = max(a.x, b.x), max(a.y, b.y)
+    return Rect(x, y, max(0, min(a.x + a.w, b.x + b.w) - x), max(0, min(a.y + a.h, b.y + b.h) - y))
+
+
+def touches(rect, other, margin=0):
+    """True if `rect`, grown by `margin` pixels on every side, overlaps `other`."""
+    return (rect.x - margin < other.x + other.w and other.x < rect.x + rect.w + margin
+            and rect.y - margin < other.y + other.h and other.y < rect.y + rect.h + margin)
+
+
 def split(rect, axis, sizes, gap=0, padding=0):
     """Divide rect among children along axis ("x" or "y").
 

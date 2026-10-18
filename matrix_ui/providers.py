@@ -1,4 +1,5 @@
 """Source types for specific services. Importing this module registers them."""
+import colorsys
 import json
 import logging
 import random
@@ -8,7 +9,7 @@ import urllib.request
 from datetime import date, datetime, timedelta, timezone
 
 from .resolver import ConfigError
-from .sources import REQUIRED, PollingSource, Source, source_type, v_interval, v_number, v_str
+from .sources import FETCH_CACHE, REQUIRED, PollingSource, Source, source_type, v_interval, v_number, v_str
 
 log = logging.getLogger(__name__)
 
@@ -87,12 +88,13 @@ def fetch_forecast(lat, lon, day="today", step_hours=3, units="fahrenheit", star
     return {"date_label": d.strftime("%a %b %d"), "slots": slots}
 
 
-RANGES = {"intraday": ("1d", "5m"), "3day": ("5d", "15m")}
+RANGES = {"intraday": ("1d", "5m"), "3day": ("5d", "15m"), "1month": ("1mo", "1d")}
+RANGE_LABELS = {"intraday": "1D", "3day": "3D", "1month": "1M"}
 
 
 def fetch_quote(symbol, label=None, range_="intraday", timeout=10):
     """Price and chart from Yahoo Finance (no key). `change` is measured against `baseline`: the previous
-    close for "intraday", the first point of the last three trading days for "3day"."""
+    close for "intraday", the first point of the chart for "3day" (last three trading days) and "1month"."""
     span, step = RANGES[range_]
     qs = urllib.parse.urlencode({"range": span, "interval": step})
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{urllib.parse.quote(symbol)}?{qs}"
@@ -113,14 +115,15 @@ def quote_from_chart(symbol, label, range_, meta, timestamps, closes):
     if not points:
         raise ValueError(f"no price data for {symbol}")
     values = [c for _, c in points]
-    dividers = [i for i in range(1, len(points)) if points[i][0] != points[i - 1][0]]
+    split = (lambda d: d.isocalendar()[:2]) if range_ == "1month" else (lambda d: d)     # weeks, not days, on 1month
+    dividers = [i for i in range(1, len(points)) if split(points[i][0]) != split(points[i - 1][0])]
     price = meta.get("regularMarketPrice", values[-1])
     baseline = meta.get("chartPreviousClose", values[0]) if range_ == "intraday" else values[0]
     change = price - baseline
     pct = change / baseline * 100 if baseline else 0
     return {
         "label": label or symbol,
-        "range_label": "1D" if range_ == "intraday" else "3D",
+        "range_label": RANGE_LABELS[range_],
         "price_label": f"{price:,.2f}",
         "change_label": f"{'+' if change >= 0 else '-'}{abs(pct):.2f}%",
         "color": "green" if change >= 0 else "red",
@@ -252,6 +255,130 @@ def daylight_fetcher(lat, lon, fetch=fetch_sun_times):
         local = (utc + timedelta(seconds=cache["offset"])).replace(tzinfo=None)
         return daylight_now(cache["pairs"], local)
     return fetch_daylight
+
+
+NFL_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+# ESPN status names that aren't simply before, during or after the game: (label, colour)
+NFL_ODD_STATUSES = {"STATUS_HALFTIME": ("HALF", "green"), "STATUS_DELAYED": ("DLY", "orange"),
+                    "STATUS_POSTPONED": ("PPD", "orange"), "STATUS_CANCELED": ("CNCL", "orange"),
+                    "STATUS_SUSPENDED": ("SUSP", "orange")}
+GREY = [150, 150, 150]      # for the team that is behind and for FINAL: the catalogue's "dim" is too faint at low brightness
+BLANK_GAME = {"away": "", "away_score": "", "away_color": "white", "away_accent": GREY,
+              "home": "", "home_score": "", "home_color": "white", "home_accent": GREY,
+              "label": "", "detail": "", "status_color": "white"}
+
+
+def kickoff_label(t):
+    """datetime -> '1:00 PM', without the space ('10:00AM') when it wouldn't fit a card."""
+    text = f"{t.hour % 12 or 12}:{t.minute:02} {'AM' if t.hour < 12 else 'PM'}"
+    return text.replace(" ", "") if len(text) > 7 else text
+
+
+def team_accent(team):
+    """A team's ESPN colour as an [r, g, b] list bright enough to see on the panel: the hue is kept and the
+    brightness raised (most are dark navies and maroons). A near-black primary uses the alternate colour."""
+    rgb = lambda hex_: [int(hex_[i:i + 2], 16) for i in (0, 2, 4)]
+    try:
+        color = rgb(team["color"])
+        if max(color) < 40:
+            color = rgb(team["alternateColor"])
+    except (KeyError, TypeError, ValueError):       # no colours (or junk) in the feed
+        return list(GREY)
+    h, s, v = colorsys.rgb_to_hsv(*(c / 255 for c in color))
+    return [round(c * 255) for c in colorsys.hsv_to_rgb(h, s, max(v, 0.85))]
+
+
+def nfl_status(status, start):
+    """(label, detail, colour) for an ESPN event status: the kickoff time (`start`, a local datetime) before the
+    game, the quarter and the clock during it, FINAL after."""
+    kind, period = status["type"], status.get("period", 0)
+    if kind["name"] in NFL_ODD_STATUSES:
+        label, color = NFL_ODD_STATUSES[kind["name"]]
+        return label, "", color
+    if kind["state"] == "pre":
+        return kickoff_label(start), "", "cyan"
+    if kind["state"] == "in":
+        quarter = "OT" if period == 5 else f"{period - 4}OT" if period > 5 else f"Q{period}"
+        return quarter, status.get("displayClock", ""), "green"
+    if kind["state"] == "post" and kind.get("completed"):
+        return ("F/OT" if period > 4 else "FINAL"), "", GREY
+    return kind.get("description", "?")[:5].upper(), "", "orange"
+
+
+def nfl_game(event):
+    """One scoreboard entry from an ESPN event: away team first, scores once the game has started, the team that
+    is behind (or lost) in grey, and each team's accent colour."""
+    teams = {c["homeAway"]: c for c in event["competitions"][0]["competitors"]}
+    start = datetime.fromisoformat(event["date"].replace("Z", "+00:00")).astimezone()
+    label, detail, color = nfl_status(event["status"], start)
+    started = event["status"]["type"]["state"] != "pre"
+    away, home = (int(teams[side].get("score") or 0) for side in ("away", "home"))
+    return {
+        "away": teams["away"]["team"]["abbreviation"], "away_score": str(away) if started else "",
+        "away_color": GREY if started and away < home else "white", "away_accent": team_accent(teams["away"]["team"]),
+        "home": teams["home"]["team"]["abbreviation"], "home_score": str(home) if started else "",
+        "home_color": GREY if started and home < away else "white", "home_accent": team_accent(teams["home"]["team"]),
+        "label": label, "detail": detail, "status_color": color,
+    }
+
+
+def fetch_nfl_games(day, timeout=10):
+    """The games on `day` (a date) from ESPN's scoreboard (no key), earliest kickoff first, as scoreboard entries."""
+    qs = urllib.parse.urlencode({"dates": day.strftime("%Y%m%d")})
+    with urllib.request.urlopen(f"{NFL_URL}?{qs}", timeout=timeout) as r:
+        events = json.load(r)["events"]
+    return [nfl_game(e) for e in sorted(events, key=lambda e: e["date"])]
+
+
+def nfl_frame(games, day, slots, columns, row_height):
+    """What the screen shows: the games in kickoff order (the first `slots` of them), padded with blank games up to
+    `slots` since a path with no data draws a loading placeholder. `length` is how far down the rows of cards that
+    hold a game reach, `columns` cards to a row and `row_height` pixels to a row, for the screen's Scroll to stop at."""
+    shown = games[:slots]
+    return {"date_label": f"{day:%b} {day.day}", "message": "" if games else "No games",
+            "length": -(-len(shown) // columns) * row_height, "games": shown + [BLANK_GAME] * (slots - len(shown))}
+
+
+class NflScoresSource(Source):
+    """Publishes the day's games (see `nfl_frame`), refetching the scores once they are `interval` seconds old through
+    FETCH_CACHE, so a screen rotating back in doesn't refetch. If a fetch fails the last scores stay up and the next
+    try is `interval` seconds later; until the first fetch succeeds nothing is published."""
+
+    def __init__(self, day, slots, columns, row_height, interval, mount, fetch=fetch_nfl_games, cache=FETCH_CACHE):
+        super().__init__(mount)
+        self.day = day
+        self.slots = slots
+        self.columns = columns
+        self.row_height = row_height
+        self.interval = interval
+        self.fetch = fetch
+        self.cache = cache
+        self._retry_at = 0
+
+    def games(self, day):
+        """The games for `day`, or None before any fetch has worked."""
+        key = ("nfl_scores", day.isoformat())
+        hit = self.cache.get(key)
+        if hit and time.time() - hit[0] < self.interval:
+            return hit[1]
+        if time.time() >= self._retry_at:
+            try:
+                games = self.fetch(day)
+            except Exception as e:      # offline, ESPN down, a changed response: keep the last scores
+                log.warning("%s fetch failed: %s", self.mount, e)
+                self._retry_at = time.time() + self.interval
+            else:
+                self.cache.put(key, games)
+                return games
+        return hit[1] if hit else None
+
+    def _run(self):
+        while not self._stop.is_set():
+            day = resolve_day(self.day)     # "today" moves on at midnight
+            games = self.games(day)
+            if games is not None:
+                self.publish(nfl_frame(games, day, self.slots, self.columns, self.row_height))
+            self._stop.wait(self.interval)
 
 
 def load_clues(path):
@@ -421,6 +548,30 @@ def v_day(v):
     return v
 
 
+def v_game_day(v):
+    if v == "now":
+        raise ValueError("expected 'today', 'tomorrow' or a YYYY-MM-DD date, got 'now'")
+    return v_day(v)
+
+
+def v_slots(v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 32:
+        raise ValueError(f"expected a number of game cards from 1 to 32, got {v!r}")
+    return v
+
+
+def v_columns(v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 4:
+        raise ValueError(f"expected a number of cards per row from 1 to 4, got {v!r}")
+    return v
+
+
+def v_row_height(v):
+    if isinstance(v, bool) or not isinstance(v, int) or not 1 <= v <= 64:
+        raise ValueError(f"expected a row height in pixels from 1 to 64, got {v!r}")
+    return v
+
+
 def v_step_hours(v):
     if isinstance(v, bool) or v not in (1, 2, 3, 4, 6, 8, 12):
         raise ValueError(f"expected a divisor of 24 (1, 2, 3, 4, 6, 8 or 12), got {v!r}")
@@ -469,7 +620,7 @@ def _weather_forecast(mount, lat, lon, day, step_hours, start_hour, end_hour, co
 
 
 @source_type("market_quote", symbol=(v_str, REQUIRED), label=(v_str, None),
-             range=(v_oneof("intraday", "3day"), "intraday"), interval=(v_interval, 60))
+             range=(v_oneof("intraday", "3day", "1month"), "intraday"), interval=(v_interval, 60))
 def _market_quote(mount, symbol, label, range, interval):
     return PollingSource(lambda: fetch_quote(symbol, label, range), interval, mount)
 
@@ -488,6 +639,12 @@ def _mta_alerts(mount, routes, interval):
 @source_type("daylight", lat=(v_number, REQUIRED), lon=(v_number, REQUIRED), interval=(v_interval, 60))
 def _daylight(mount, lat, lon, interval):
     return PollingSource(daylight_fetcher(lat, lon), interval, mount)
+
+
+@source_type("nfl_scores", day=(v_game_day, "today"), slots=(v_slots, 16), columns=(v_columns, 2),
+             row_height=(v_row_height, 29), interval=(v_interval, 30))
+def _nfl_scores(mount, day, slots, columns, row_height, interval):
+    return NflScoresSource(day, slots, columns, row_height, interval, mount)
 
 
 def v_questions(v):

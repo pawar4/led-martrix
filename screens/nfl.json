@@ -1,0 +1,804 @@
+{
+  "root": "root",
+  "components": [
+    {
+      "id": "root",
+      "component": "Column",
+      "children": [
+        "head",
+        "body"
+      ]
+    },
+    {
+      "id": "head",
+      "component": "Stack",
+      "height": 8,
+      "children": [
+        "head_bg",
+        "head_row"
+      ]
+    },
+    {
+      "id": "head_bg",
+      "component": "Fill",
+      "color": [
+        0,
+        28,
+        70
+      ]
+    },
+    {
+      "id": "head_row",
+      "component": "Row",
+      "y": 1,
+      "height": 6,
+      "padding": [
+        0,
+        2,
+        0,
+        2
+      ],
+      "children": [
+        "title",
+        "date"
+      ]
+    },
+    {
+      "id": "title",
+      "component": "Text",
+      "width": 16,
+      "font": "tiny",
+      "color": "white",
+      "text": "NFL"
+    },
+    {
+      "id": "date",
+      "component": "Text",
+      "font": "tiny",
+      "align": "right",
+      "color": [
+        120,
+        190,
+        255
+      ],
+      "text": {
+        "path": "/nfl/date_label"
+      }
+    },
+    {
+      "id": "body",
+      "component": "Stack",
+      "children": [
+        "scroll",
+        "none"
+      ]
+    },
+    {
+      "id": "scroll",
+      "component": "Scroll",
+      "speed": 8,
+      "hold": 2,
+      "length": {
+        "path": "/nfl/length"
+      },
+      "children": [
+        "grid"
+      ]
+    },
+    {
+      "id": "grid",
+      "component": "Column",
+      "gap": 2,
+      "height": 230,
+      "children": [
+        "r0",
+        "r1",
+        "r2",
+        "r3",
+        "r4",
+        "r5",
+        "r6",
+        "r7"
+      ]
+    },
+    {
+      "id": "none",
+      "component": "Text",
+      "y": 24,
+      "height": 7,
+      "font": "tiny",
+      "align": "center",
+      "color": [
+        150,
+        150,
+        150
+      ],
+      "text": {
+        "path": "/nfl/message"
+      }
+    },
+    {
+      "id": "r0",
+      "component": "Row",
+      "children": [
+        "c0",
+        "c1"
+      ]
+    },
+    {
+      "id": "r1",
+      "component": "Row",
+      "children": [
+        "c2",
+        "c3"
+      ]
+    },
+    {
+      "id": "r2",
+      "component": "Row",
+      "children": [
+        "c4",
+        "c5"
+      ]
+    },
+    {
+      "id": "r3",
+      "component": "Row",
+      "children": [
+        "c6",
+        "c7"
+      ]
+    },
+    {
+      "id": "r4",
+      "component": "Row",
+      "children": [
+        "c8",
+        "c9"
+      ]
+    },
+    {
+      "id": "r5",
+      "component": "Row",
+      "children": [
+        "c10",
+        "c11"
+      ]
+    },
+    {
+      "id": "r6",
+      "component": "Row",
+      "children": [
+        "c12",
+        "c13"
+      ]
+    },
+    {
+      "id": "r7",
+      "component": "Row",
+      "children": [
+        "c14",
+        "c15"
+      ]
+    },
+    {
+      "id": "c0",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/0/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/0/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/0/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/0/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/0/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/0/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/0/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/0/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/0/label"
+      },
+      "detail": {
+        "path": "/nfl/games/0/detail"
+      },
+      "color": {
+        "path": "/nfl/games/0/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c1",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/1/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/1/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/1/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/1/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/1/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/1/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/1/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/1/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/1/label"
+      },
+      "detail": {
+        "path": "/nfl/games/1/detail"
+      },
+      "color": {
+        "path": "/nfl/games/1/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c2",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/2/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/2/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/2/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/2/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/2/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/2/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/2/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/2/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/2/label"
+      },
+      "detail": {
+        "path": "/nfl/games/2/detail"
+      },
+      "color": {
+        "path": "/nfl/games/2/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c3",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/3/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/3/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/3/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/3/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/3/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/3/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/3/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/3/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/3/label"
+      },
+      "detail": {
+        "path": "/nfl/games/3/detail"
+      },
+      "color": {
+        "path": "/nfl/games/3/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c4",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/4/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/4/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/4/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/4/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/4/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/4/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/4/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/4/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/4/label"
+      },
+      "detail": {
+        "path": "/nfl/games/4/detail"
+      },
+      "color": {
+        "path": "/nfl/games/4/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c5",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/5/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/5/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/5/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/5/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/5/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/5/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/5/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/5/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/5/label"
+      },
+      "detail": {
+        "path": "/nfl/games/5/detail"
+      },
+      "color": {
+        "path": "/nfl/games/5/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c6",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/6/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/6/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/6/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/6/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/6/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/6/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/6/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/6/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/6/label"
+      },
+      "detail": {
+        "path": "/nfl/games/6/detail"
+      },
+      "color": {
+        "path": "/nfl/games/6/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c7",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/7/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/7/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/7/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/7/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/7/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/7/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/7/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/7/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/7/label"
+      },
+      "detail": {
+        "path": "/nfl/games/7/detail"
+      },
+      "color": {
+        "path": "/nfl/games/7/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c8",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/8/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/8/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/8/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/8/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/8/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/8/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/8/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/8/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/8/label"
+      },
+      "detail": {
+        "path": "/nfl/games/8/detail"
+      },
+      "color": {
+        "path": "/nfl/games/8/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c9",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/9/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/9/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/9/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/9/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/9/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/9/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/9/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/9/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/9/label"
+      },
+      "detail": {
+        "path": "/nfl/games/9/detail"
+      },
+      "color": {
+        "path": "/nfl/games/9/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c10",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/10/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/10/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/10/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/10/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/10/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/10/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/10/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/10/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/10/label"
+      },
+      "detail": {
+        "path": "/nfl/games/10/detail"
+      },
+      "color": {
+        "path": "/nfl/games/10/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c11",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/11/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/11/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/11/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/11/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/11/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/11/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/11/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/11/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/11/label"
+      },
+      "detail": {
+        "path": "/nfl/games/11/detail"
+      },
+      "color": {
+        "path": "/nfl/games/11/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c12",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/12/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/12/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/12/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/12/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/12/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/12/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/12/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/12/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/12/label"
+      },
+      "detail": {
+        "path": "/nfl/games/12/detail"
+      },
+      "color": {
+        "path": "/nfl/games/12/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c13",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/13/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/13/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/13/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/13/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/13/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/13/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/13/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/13/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/13/label"
+      },
+      "detail": {
+        "path": "/nfl/games/13/detail"
+      },
+      "color": {
+        "path": "/nfl/games/13/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c14",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/14/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/14/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/14/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/14/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/14/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/14/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/14/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/14/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/14/label"
+      },
+      "detail": {
+        "path": "/nfl/games/14/detail"
+      },
+      "color": {
+        "path": "/nfl/games/14/status_color"
+      },
+      "width": 32
+    },
+    {
+      "id": "c15",
+      "component": "GameCard",
+      "away": {
+        "path": "/nfl/games/15/away"
+      },
+      "away_score": {
+        "path": "/nfl/games/15/away_score"
+      },
+      "away_color": {
+        "path": "/nfl/games/15/away_color"
+      },
+      "away_accent": {
+        "path": "/nfl/games/15/away_accent"
+      },
+      "home": {
+        "path": "/nfl/games/15/home"
+      },
+      "home_score": {
+        "path": "/nfl/games/15/home_score"
+      },
+      "home_color": {
+        "path": "/nfl/games/15/home_color"
+      },
+      "home_accent": {
+        "path": "/nfl/games/15/home_accent"
+      },
+      "label": {
+        "path": "/nfl/games/15/label"
+      },
+      "detail": {
+        "path": "/nfl/games/15/detail"
+      },
+      "color": {
+        "path": "/nfl/games/15/status_color"
+      },
+      "width": 32
+    }
+  ],
+  "sources": [
+    {
+      "type": "nfl_scores",
+      "mount": "/nfl",
+      "day": "today",
+      "slots": 16,
+      "columns": 2,
+      "row_height": 29,
+      "interval": 30
+    }
+  ]
+}

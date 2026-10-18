@@ -27,15 +27,23 @@ def make_matrix(brightness=60):
     return RGBMatrix(options=options)
 
 
-def load_fonts(fonts_dir=None):
-    """Load the named fonts. Search order: argument, $MATRIX_FONTS_DIR, repo fonts/, Pi install."""
+def font_dir(fonts_dir=None):
+    """The directory holding the BDF fonts. Search order: argument, $MATRIX_FONTS_DIR, repo fonts/, Pi install."""
     candidates = [fonts_dir, os.environ.get("MATRIX_FONTS_DIR"), REPO_FONTS, PI_FONTS]
     for directory in candidates:
         if directory and all(os.path.exists(os.path.join(directory, f)) for f in FONT_FILES.values()):
-            break
-    else:
-        raise FileNotFoundError(f"BDF fonts {sorted(FONT_FILES.values())} not found in {candidates}")
+            return directory
+    raise FileNotFoundError(f"BDF fonts {sorted(FONT_FILES.values())} not found in {candidates}")
 
+
+def font_file(name):
+    """Path of the BDF file behind the logical font `name` ("tiny", "small", "large")."""
+    return os.path.join(font_dir(), FONT_FILES[name])
+
+
+def load_fonts(fonts_dir=None):
+    """Load the named fonts from `font_dir(fonts_dir)`."""
+    directory = font_dir(fonts_dir)
     fonts = {}
     for name, filename in FONT_FILES.items():
         font = graphics.Font()

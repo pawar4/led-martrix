@@ -28,15 +28,23 @@ are unchanged. See [screen-config.md](screen-config.md#global-model) for the key
   See [web.md](web.md).
 - `resolver.py`: `Surface.load(path|dict)` validates the config and builds the tree.
   `Surface.render(canvas, dm, fonts, graphics, now=None, strict=False)` resolves bindings and renders
-  each node into its rect. `_reported` lives on the `Surface` so errors log once, not every frame.
+  each node into its rect. `_reported` lives on the `Surface` so errors log once, not every frame. A `Node`
+  keeps per-frame widget state in `node.state` (a `Scroll`'s start time); it is lost when the screen reloads.
 - `catalog.py`: the widget registry and validators.
-- `layout.py`: `Rect`, `inset`, `split` (fixed sizes plus flex remainder, gap, padding).
+- `layout.py`: `Rect`, `inset`, `split` (fixed sizes plus flex remainder, gap, padding), `intersect`, `touches`.
+- `clip.py`: `ClipCanvas`, a canvas wrapper that drops `SetPixel` outside a `Rect`. `Scroll` swaps it in for
+  `ctx.canvas` while it renders its child, so every widget that draws with `SetPixel` is clipped without knowing.
+  `ctx.clip` is its rect (None outside a `Scroll`), and `render_node` skips nodes that fall wholly outside it.
+  The native `graphics.DrawText` can't be clipped and rejects a wrapper canvas, so `draw_text` calls it (on the
+  wrapper's `target`) only when the text is wholly in view, skips text wholly out of view, and draws text that
+  straddles the edge pixel by pixel from `bdf.py`, which reads just the glyph bitmaps from the font file
+  (`backend.font_file(name)`); `tests/test_bdf.py` checks it lights exactly the pixels `DrawText` does.
 - `datamodel.py`: thread-safe `get(path, default)` / `set(path, value)`.
 - `sources.py`: `Source` base class, `StaticFileSource`, `PollingSource`, the `source_type` registry and
   `build_sources` (validates the config's `sources`). Generic types: `file`, `http_json`.
-- `providers.py`: service-specific source types (`weather`, `weather_forecast`, `market_quote`, `trivia`, `mta_arrivals`, `mta_alerts`, `daylight`).
+- `providers.py`: service-specific source types (`weather`, `weather_forecast`, `market_quote`, `nfl_scores`, `trivia`, `mta_arrivals`, `mta_alerts`, `daylight`).
 - `backend.py`: uses `rgbmatrix` if installed, else `RGBMatrixEmulator`. Also `make_matrix()` and
-  `load_fonts()` (searches `$MATRIX_FONTS_DIR`, repo `fonts/`, then the Pi's font path).
+  `load_fonts()` (searches `$MATRIX_FONTS_DIR`, repo `fonts/`, then the Pi's font path; `font_dir()` is that search).
 - `icons.py`: pixel-art icons copied from `new_subway.py`.
 
 ## Adding a widget
@@ -52,7 +60,8 @@ class Label(Widget):
 ```
 
 Props are `{name: (validator, default)}`. A validator returns the normalised value or raises
-`ValueError`. Set `container = True` for widgets with children. Then add a test and list the widget in
+`ValueError`. Set `container = True` for widgets with children (and `max_children = 1` to limit how many; the
+resolver rejects more). Then add a test and list the widget in
 [widgets.md](widgets.md).
 
 ## Adding a data source
@@ -70,7 +79,10 @@ Polling sources are memoized: `build_source` gives each a key (type + params, ig
 and `FETCH_CACHE` holds the last value per key. A source started within its `interval` of the last fetch
 publishes the cached value at once and only fetches when it is stale; stale data is still shown while the
 refetch runs. So rotating screens doesn't refetch, and two sources with the same params share data. Failed
-fetches aren't cached. `trivia` and `file` sources aren't memoized.
+fetches aren't cached. `trivia` and `file` sources aren't memoized. `nfl_scores` is a `Source` subclass because it
+follows "today" across midnight and builds its frame from the fetched games (`nfl_frame`), which a polling source can't;
+it keeps the memoization by putting its fetched scores in `FETCH_CACHE` itself (keyed by type and day) and passing a
+`cache` in for tests.
 
 A source owns one subtree and replaces it with a single `dm.set(mount, value)`, so a render never sees a
 half-updated value. Push-style sources (MQTT, WebSocket) subclass `Source` and implement `_run`.

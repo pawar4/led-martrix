@@ -5,9 +5,12 @@ A widget declares its props as {name: (validator, default)}. Validators return t
 decorating it with @register("Name").
 """
 from datetime import datetime
+from functools import lru_cache
 
+from .bdf import load_bdf, text_pixels
+from .clip import ClipCanvas
 from .icons import ICONS, UNKNOWN, draw_icon, get_icon_for_code
-from .layout import Rect, inset, split
+from .layout import Rect, inset, intersect, split
 
 REGISTRY = {}
 
@@ -93,6 +96,18 @@ def v_number(v):
     return v
 
 
+def v_positive(v):
+    if v_number(v) <= 0:
+        raise ValueError(f"expected a number above 0, got {v!r}")
+    return v
+
+
+def v_nonneg(v):
+    if v_number(v) < 0:
+        raise ValueError(f"expected a number of 0 or more, got {v!r}")
+    return v
+
+
 def v_number_list(v):
     if not isinstance(v, list) or not all(isinstance(i, (int, float)) and not isinstance(i, bool) for i in v):
         raise ValueError(f"expected list of numbers, got {v!r}")
@@ -123,6 +138,7 @@ class Widget:
     props = {}
     required = ()
     container = False
+    max_children = None     # for a container: how many children it takes (None: any number)
     loading_props = ()      # props that, bound to a path with no data yet, make the widget draw render_loading
 
     def render(self, ctx, rect, p, node):
@@ -165,9 +181,29 @@ def draw_skeleton(ctx, x, y, w, h):
             ctx.canvas.SetPixel(x + col, y + row, level, level, level)
 
 
+@lru_cache(maxsize=None)
+def font_glyphs(font_name):
+    from .backend import font_file      # deferred: backend imports the matrix bindings
+    return load_bdf(font_file(font_name))
+
+
 def draw_text(ctx, x, baseline_y, text, color, font_name):
     font = ctx.fonts[font_name]
-    ctx.graphics.DrawText(ctx.canvas, font, x, baseline_y, ctx.graphics.Color(*color), text)
+    clip = ctx.clip
+    if clip is not None:
+        # native DrawText can't be clipped: use it when the text is wholly in view, skip it when it is wholly out of view
+        # and draw it pixel by pixel through the clipping canvas when it straddles an edge. The box has a pixel to spare
+        # because a glyph can overhang the font's nominal box
+        box = Rect(x - 1, baseline_y - font.baseline - 1, text_width(font, text) + 2, font.height + 2)
+        visible = intersect(box, clip)
+        if not (visible.w and visible.h):
+            return
+        if visible != box:
+            for px, py in text_pixels(font_glyphs(font_name), text, x, baseline_y):
+                ctx.canvas.SetPixel(px, py, *color)
+            return
+    canvas = getattr(ctx.canvas, "target", ctx.canvas)
+    ctx.graphics.DrawText(canvas, font, x, baseline_y, ctx.graphics.Color(*color), text)
 
 
 def draw_aligned_text(ctx, rect, text, color, font_name, align):
@@ -180,6 +216,27 @@ def draw_aligned_text(ctx, rect, text, color, font_name, align):
     elif align == "right":
         x += rect.w - width
     draw_text(ctx, x, rect.y + font.baseline, text, color, font_name)
+
+
+def fill_rect(canvas, rect, color):
+    for y in range(rect.y, rect.y + rect.h):
+        for x in range(rect.x, rect.x + rect.w):
+            canvas.SetPixel(x, y, *color)
+
+
+def draw_rounded_box(canvas, rect, fill, border):
+    """Filled rectangle with a one-pixel border and the four corner pixels left out."""
+    for y in range(rect.y, rect.y + rect.h):
+        for x in range(rect.x, rect.x + rect.w):
+            edge_x = x in (rect.x, rect.x + rect.w - 1)
+            edge_y = y in (rect.y, rect.y + rect.h - 1)
+            if edge_x and edge_y:
+                continue                    # rounded corner
+            canvas.SetPixel(x, y, *(border if edge_x or edge_y else fill))
+
+
+def scaled(color, factor):
+    return tuple(int(c * factor) for c in color)
 
 
 def draw_disc(canvas, cx, cy, radius, color):
@@ -273,6 +330,58 @@ class Stack(Widget):
             w = child.layout.get("width", inner.w - x)
             h = child.layout.get("height", inner.h - y)
             ctx.render_node(child, Rect(inner.x + x, inner.y + y, w, h))
+
+
+def scroll_offset(elapsed, travel, speed, hold):
+    """Pixels scrolled `elapsed` seconds in: rests at 0 for `hold` seconds, moves at `speed` pixels a second to `travel`,
+    rests there for `hold` seconds, then starts over."""
+    if travel <= 0:
+        return 0
+    return int(min(max(elapsed % (2 * hold + travel / speed) - hold, 0) * speed, travel))
+
+
+@register("Scroll")
+class Scroll(Widget):
+    """A window onto one child that is taller than the box (its `height`), scrolling it up so the rest comes into view.
+    The child rests at the top for `hold` seconds, scrolls at `speed` pixels a second until its bottom is in view,
+    rests there for `hold` seconds, then jumps back to the top and repeats. The clock starts when the screen loads.
+    A child that fits stays still. Everything outside the box is clipped.
+
+    `length` is how much of the child is worth showing, in pixels from its top: bind it when the child has empty
+    space at the bottom (cards with no game) and the scroll should end where the content does. While a bound
+    `length` has no data yet the child is shown at the top and does not scroll."""
+    container = True
+    max_children = 1
+    props = {
+        "speed": (v_positive, 8),
+        "hold": (v_nonneg, 2),
+        "length": (v_int, None),
+    }
+    loading_props = ("length",)
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        self.draw(ctx, rect, node, 0)
+
+    def render(self, ctx, rect, p, node):
+        if not node.children:
+            return
+        height = node.children[0].layout.get("height", rect.h)
+        length = height if p["length"] is None else min(max(p["length"], 0), height)
+        now = ctx.now().timestamp()
+        elapsed = now - node.state.setdefault("start", now)
+        self.draw(ctx, rect, node, scroll_offset(elapsed, length - rect.h, p["speed"], p["hold"]))
+
+    def draw(self, ctx, rect, node, offset):
+        if not node.children:
+            return
+        child = node.children[0]
+        content = Rect(rect.x, rect.y - offset, child.layout.get("width", rect.w), child.layout.get("height", rect.h))
+        outer = ctx.canvas
+        ctx.canvas = ClipCanvas(getattr(outer, "target", outer), intersect(ctx.clip, rect) if ctx.clip else rect)
+        try:
+            ctx.render_node(child, content)
+        finally:
+            ctx.canvas = outer
 
 
 # ---- leaf widgets ----
@@ -434,6 +543,52 @@ class ForecastSlot(Widget):
                           p["temp"], p["temp_color"], "small", "left")
 
 
+CARD_FILL = (10, 12, 20)
+CARD_DETAIL = (150, 160, 190)
+
+
+@register("GameCard")
+class GameCard(Widget):
+    """Scoreboard card for one game, sized for a 32x27 box. A status line (`label`, centred, or with `detail` such as
+    the game clock on its right), then the away and home team, each on a band tinted with its `_accent` colour and
+    marked by a chip of it, with the abbreviation and the score in `_color`. `color` sets the border and the label.
+    A card with no teams draws nothing, so a page with fewer games than cards leaves the rest of its grid empty."""
+    props = {
+        "away": (v_text, ""), "away_score": (v_text, ""),
+        "away_color": (v_color, COLORS["white"]), "away_accent": (v_color, COLORS["dim"]),
+        "home": (v_text, ""), "home_score": (v_text, ""),
+        "home_color": (v_color, COLORS["white"]), "home_accent": (v_color, COLORS["dim"]),
+        "label": (v_text, ""), "detail": (v_text, ""), "color": (v_color, COLORS["dim"]),
+    }
+    loading_props = ("away", "home")
+
+    def render_loading(self, ctx, rect, p, node, waiting):
+        draw_rounded_box(ctx.canvas, rect, CARD_FILL, (30, 33, 45))
+        draw_skeleton(ctx, rect.x + 8, rect.y + 3, 16, 4)
+        for i in range(2):
+            draw_skeleton(ctx, rect.x + 5, rect.y + 10 + i * 8, 12, 4)
+            draw_skeleton(ctx, rect.x + 20, rect.y + 10 + i * 8, 8, 4)
+
+    def render(self, ctx, rect, p, node):
+        if not (p["away"] or p["home"]):
+            return
+        draw_rounded_box(ctx.canvas, rect, CARD_FILL, scaled(p["color"], 0.45))
+        inner = inset(rect, 1)
+        line = Rect(inner.x + 1, rect.y + 2, max(inner.w - 2, 0), 6)
+        if p["detail"]:
+            draw_aligned_text(ctx, line, p["label"], p["color"], "tiny", "left")
+            draw_aligned_text(ctx, line, p["detail"], CARD_DETAIL, "tiny", "right")
+        else:
+            draw_aligned_text(ctx, line, p["label"], p["color"], "tiny", "center")
+        for i, side in enumerate(("away", "home")):
+            row = Rect(inner.x, rect.y + 9 + i * 8, inner.w, 8)
+            fill_rect(ctx.canvas, row, scaled(p[side + "_accent"], 0.18))
+            fill_rect(ctx.canvas, Rect(row.x, row.y + 1, 2, 6), p[side + "_accent"])
+            draw_aligned_text(ctx, Rect(row.x + 4, row.y + 1, 12, 6), p[side], p[side + "_color"], "tiny", "left")
+            draw_aligned_text(ctx, Rect(row.x + 14, row.y, max(row.w - 14, 0), 8), p[side + "_score"],
+                              p[side + "_color"], "small", "right")
+
+
 @register("LineChart")
 class LineChart(Widget):
     """Line chart of `values` stretched to the box width and scaled to its height (min to max).
@@ -492,9 +647,7 @@ class Fill(Widget):
     props = {"color": (v_color, COLORS["black"])}
 
     def render(self, ctx, rect, p, node):
-        for y in range(rect.y, rect.y + rect.h):
-            for x in range(rect.x, rect.x + rect.w):
-                ctx.canvas.SetPixel(x, y, *p["color"])
+        fill_rect(ctx.canvas, rect, p["color"])
 
 
 @register("ProgressBar")
@@ -588,13 +741,7 @@ class SpeechBubble(Widget):
     def render(self, ctx, rect, p, node):
         if rect.w < 3 or rect.h < 3:
             return
-        for y in range(rect.y, rect.y + rect.h):
-            for x in range(rect.x, rect.x + rect.w):
-                edge_x = x in (rect.x, rect.x + rect.w - 1)
-                edge_y = y in (rect.y, rect.y + rect.h - 1)
-                if edge_x and edge_y:
-                    continue                    # rounded corner
-                ctx.canvas.SetPixel(x, y, *(p["border"] if edge_x or edge_y else p["fill"]))
+        draw_rounded_box(ctx.canvas, rect, p["fill"], p["border"])
         if p["tail"]:
             ctx.canvas.SetPixel(rect.x + 4, rect.y + rect.h, *p["border"])
             ctx.canvas.SetPixel(rect.x + 3, rect.y + rect.h + 1, *p["border"])

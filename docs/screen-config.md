@@ -41,8 +41,9 @@ writes into the data model under its own `mount` path, and the component binding
 | `weather_forecast` | `lat*`, `lon*`, `day` (`today`), `step_hours` (3), `start_hour` (6), `end_hour` (22), `count` (6), `units` (`fahrenheit`), `interval` (1800) | `{date_label, slots: [{hour, code, is_day, temp_label, temp_color}]}` (Open-Meteo; bind a slot's `is_day` and `temp_color` to a `ForecastSlot`; `temp_color` is `blue` at or below 40F (4C), `red` at or above 85F (29C), else `yellow`) |
 | `mta_alerts` | `routes*` (list, e.g. `["E", "7"]`), `interval` (120) | `{route: {label, color, headline, rank}, headline, count}`: the worst active alert per route (`All clear` green, `Svc change` yellow, `Delays` orange, `Suspended` red) and the worst alert's first sentence (MTA alerts feed, no key) |
 | `daylight` | `lat*`, `lon*`, `interval` (60) | `{phase, color, progress, next_label, sunrise_label, sunset_label}`: `phase` is `day` or `night`, `progress` (0-1) how far through it, `color` yellow (day) or blue (night); sun times come from Open-Meteo (fetched a few times a day), the rest is computed each poll |
-| `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values, dividers}` (Yahoo Finance, no key) |
+| `market_quote` | `symbol*`, `label` (the symbol), `range` (`intraday`, `3day` or `1month`), `interval` (60) | `{label, range_label, price_label, change_label, color, baseline, values, dividers}` (Yahoo Finance, no key) |
 | `trivia` | `path*`, `question_seconds` (15), `reveal_seconds` (5), `questions` (5), `provider` (`local`), `difficulty` | `{category, value_label, count_label, phase, body, body_color, bar_color, progress, scroll}` (a local clue bank) |
+| `nfl_scores` | `day` (`today`), `slots` (16), `columns` (2), `row_height` (29), `interval` (30) | `{date_label, message, length, games: [{away, away_score, away_color, away_accent, home, home_score, home_color, home_accent, label, detail, status_color}]}`: every game on `day`, padded to `slots` (ESPN scoreboard, no key; bind a game to a `GameCard` and `length` to a `Scroll`) |
 | `mta_arrivals` | `stations*`, `walk_minutes` (0), `max_arrivals` (3), `interval` (30) | `{route: {name, direction, arrivals}}` (nyct-gtfs) |
 
 `weather_forecast` `day` is `now`, `today`, `tomorrow` or a `YYYY-MM-DD` date (Open-Meteo forecasts go about 16 days ahead);
@@ -57,8 +58,9 @@ times are local to the given coordinates. Bind `progress` and `color` to a `Prog
 
 `market_quote` `range` picks the chart: `intraday` is today's session at 5-minute steps, with the change measured
 against the previous close; `3day` is the last three trading days at 15-minute steps, with the change measured
-from the first point. `color` is `green` or `red` (bind it to the chart and change line), `baseline` is the
-reference price, `values` is the price series for `LineChart`, and `dividers` are the indexes where a new trading day starts (bind to `LineChart` `dividers` for 1px day-split columns on `3day`). Symbols are Yahoo's (`^GSPC`, `AAPL`, `BTC-USD`).
+from the first point; `1month` is the last month of daily closes (about 21 points), also measured from the first
+point. `color` is `green` or `red` (bind it to the chart and change line), `baseline` is the
+reference price, `values` is the price series for `LineChart`, and `dividers` are the indexes where a new trading day starts, or a new week on `1month` (bind to `LineChart` `dividers` for 1px day-split or week-split columns on `3day` and `1month`). Symbols are Yahoo's (`^GSPC`, `AAPL`, `BTC-USD`).
 To switch charts, change `range` in the screen's source. Outside market hours the intraday chart shows the last
 session.
 
@@ -87,6 +89,31 @@ $1000). If a fetch fails (offline, rate limited at one request per 5 seconds, a 
 local bank at `path` instead, so `path` is required either way. The screen stalls on its last frame while a fetch is
 in progress, up to 10 seconds. These clues run long, so raise `question_seconds` (20 is comfortable) to leave time to
 scroll through them.
+
+`nfl_scores` lists every game on `day` (`today`, `tomorrow` or a `YYYY-MM-DD` date; "today" follows the machine's
+clock; ESPN files a game under the US date it kicks off on), earliest kickoff first, all of them at once: the screen
+puts its cards in a [`Scroll`](widgets.md#layout) and the day's slate slowly scrolls past (a slate that fits stays
+still). `slots` is how many cards the screen binds (`games/0` to `games/15` in `screens/nfl.json`: eight rows of two,
+32x27 each, 2px apart; games past `slots` aren't shown) and `columns` is how many sit in a row. `length` is how far
+down the rows that hold a game reach, `row_height` pixels each (the card plus the gap), so a day with five games
+publishes 145 and the `Scroll` stops there instead of scrolling through empty cards. Scores are refetched
+once they are `interval` seconds old, shared through the same cache as the polling sources, so rotating back to the
+screen doesn't refetch; if a refresh fails the last scores stay up and the next try is `interval` seconds later.
+Until the first fetch works nothing is published, so the screen shows its loading placeholders (still, not scrolling).
+
+Each game is the away team, then the home team, and binds straight onto a [`GameCard`](widgets.md#leaves).
+`away_score` and `home_score` are empty until kickoff. `label` and `detail` are the card's status line: the kickoff
+time in the machine's timezone (`1:00 PM`, no detail) before the game, the quarter and the clock (`Q3`, `7:46`)
+during it, `HALF` at halftime, and `FINAL` or `F/OT` after; postponed, canceled, delayed and suspended games show
+`PPD`, `CNCL`, `DLY` and `SUSP`. `status_color` goes with it (cyan before, green during, grey after, orange for the
+rest); bind it to the card's `color`, which also sets its border. `away_color` and `home_color` are white, or
+grey for the team that is behind or lost, so the leader stands out (a tie keeps both white). `away_accent` and
+`home_accent` are each team's ESPN colour as an `[r, g, b]` list, with the hue kept and the brightness raised, since
+most team colours are too dark to see on the panel (a near-black primary uses the team's alternate colour; a team with
+no colours gets grey).
+Slots with no game are blank games rather than missing ones (a path with no data would draw a loading placeholder),
+and a `GameCard` with no teams draws nothing. `message` is `No games` on a day with none (empty otherwise). `slots`,
+`columns` and `row_height` must match the screen's grid, which `tests/test_sources.py` checks for `screens/nfl.json`.
 
 `mta_arrivals` stations look like `{"E": {"stop_id": "F09", "direction": "S", "name": "Court Sq"}}`.
 `${NAME}` in `http_json` URLs and headers is replaced from the environment, so keys stay out of the file.
@@ -118,6 +145,12 @@ Every component accepts `width`, `height`, `x`, `y`. They must be literal intege
 The panel is 64x64. Fixed sizes are pixels, so they must add up to at most the parent's size. `Text`,
 `Clock` and `TrainRow` trim text to their box. `TrainRow` drops trailing arrivals that don't fit, and
 always keeps the first.
+
+To show more than fits, put it in a [`Scroll`](widgets.md#layout): a container with one child, given a `height`
+taller than the `Scroll`'s own box, that scrolls up through it on a timer and clips what is outside. Its child is laid
+out at that full height, and, being a normal subtree, can be a `Column` of anything. `Scroll` needs no data model
+value: it keeps its own clock (see `screens/nfl.json`). `WrapText`'s `scroll` is the separate, data-driven way to
+scroll a single block of text a line at a time (see `trivia`).
 
 ## Validation
 
