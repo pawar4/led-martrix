@@ -5,7 +5,7 @@
     {
       "screen": "nfl",
       "at": "0 */2 * * * 0",
-      "for": 30
+      "for": 60
     },
     {
       "screen": "weather",
